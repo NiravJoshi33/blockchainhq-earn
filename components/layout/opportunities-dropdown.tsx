@@ -15,6 +15,8 @@ import {
   ComputerIcon,
   GitBranchIcon,
   ChevronDownIcon,
+  Lightbulb,
+  Trophy,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -45,31 +47,45 @@ const OpportunitiesDropdown = () => {
         <DropdownMenuGroup>
           <DropdownMenuItem
             className="flex flex-row items-center justify-start gap-2 hover:bg-accent! hover:text-brand! cursor-pointer"
-            onClick={(e) => handleClick(e, "/hackathons")}
+            onClick={(e) => handleClick(e, "/opportunities")}
           >
             <ComputerIcon className="w-4 h-4" />
-            Hackathons
+            All Opportunities
           </DropdownMenuItem>
           <DropdownMenuItem
             className="flex flex-row items-center justify-start gap-2 hover:bg-accent! hover:text-brand! cursor-pointer"
-            onClick={(e) => handleClick(e, "/bounties")}
+            onClick={(e) => handleClick(e, "/opportunities?type=bounty")}
           >
             <AwardIcon className="w-4 h-4" />
             Bounties
           </DropdownMenuItem>
           <DropdownMenuItem
             className="flex flex-row items-center justify-start gap-2 hover:bg-accent! hover:text-brand! cursor-pointer"
-            onClick={(e) => handleClick(e, "/jobs")}
+            onClick={(e) => handleClick(e, "/opportunities?type=job")}
           >
             <BriefcaseIcon className="w-4 h-4" />
             Jobs
           </DropdownMenuItem>
           <DropdownMenuItem
             className="flex flex-row items-center justify-start gap-2 hover:bg-accent! hover:text-brand! cursor-pointer"
-            onClick={(e) => handleClick(e, "/projects-and-gigs")}
+            onClick={(e) => handleClick(e, "/opportunities?type=project")}
           >
             <GitBranchIcon className="w-4 h-4" />
-            Projects & Gigs
+            Projects
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="flex flex-row items-center justify-start gap-2 hover:bg-accent! hover:text-brand! cursor-pointer"
+            onClick={(e) => handleClick(e, "/opportunities?type=grant")}
+          >
+            <Lightbulb className="w-4 h-4" />
+            Grants
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="flex flex-row items-center justify-start gap-2 hover:bg-accent! hover:text-brand! cursor-pointer"
+            onClick={(e) => handleClick(e, "/opportunities?type=hackathon")}
+          >
+            <Trophy className="w-4 h-4" />
+            Hackathons
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
