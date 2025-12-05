@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Edit, Twitter, Github, Linkedin, Globe, MapPin, Briefcase } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 
 export default function ProfilePage() {
   const { user, loading } = useUser();
@@ -66,22 +65,28 @@ export default function ProfilePage() {
         <CardContent className="space-y-6">
           {/* Profile Picture */}
           <div className="flex items-center gap-6">
-            {user.avatar_url ? (
-              <Image
-                src={user.avatar_url}
-                alt="Profile"
-                width={96}
-                height={96}
-                className="rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center">
+            <div className="relative">
+              {user.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt="Profile"
+                  className="w-24 h-24 rounded-full object-cover"
+                  onError={(e) => {
+                    // Fallback to initials if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const fallback = target.parentElement?.querySelector(".avatar-fallback") as HTMLElement;
+                    if (fallback) fallback.style.display = "flex";
+                  }}
+                />
+              ) : null}
+              <div className={`avatar-fallback w-24 h-24 rounded-full bg-muted flex items-center justify-center ${user.avatar_url ? "hidden absolute inset-0" : ""}`}>
                 <span className="text-2xl font-semibold text-muted-foreground">
                   {firstName.charAt(0).toUpperCase()}
                   {lastName.charAt(0).toUpperCase()}
                 </span>
               </div>
-            )}
+            </div>
             <div>
               <h2 className="text-2xl font-bold">
                 {user.name || "No name set"}

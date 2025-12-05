@@ -1,4 +1,5 @@
 import { supabase } from "../client";
+import { generateRandomUsername, generateAvatarUrl } from "@/lib/utils";
 
 export async function getUserByPrivyId(privyId: string) {
   const { data, error } = await supabase
@@ -17,13 +18,30 @@ export async function createUser(userData: {
   wallet_address?: string;
   role?: "hunter" | "sponsor";
 }) {
+  // Generate random username and avatar if not provided
+  const randomUsername = generateRandomUsername();
+  const avatarUrl = generateAvatarUrl(userData.email || randomUsername);
+  
+  // Create a default name from the username
+  const defaultName = randomUsername
+    .split("-")
+    .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
   const { data, error } = await supabase
     .from("users")
-    .insert(userData)
+    .insert({
+      ...userData,
+      name: defaultName,
+      avatar_url: avatarUrl,
+    })
     .select()
     .single();
 
   if (error) throw error;
+  
+  // Store username in profile_data if the column exists
+  // This will be handled when profile_data column is added
   return data;
 }
 

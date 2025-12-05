@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { getUserByPrivyId, createUser } from "@/lib/supabase/services/users";
+import { supabase } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
 type User = Database["public"]["Tables"]["users"]["Row"];
@@ -37,6 +38,40 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           email: privyUser.email?.address,
           wallet_address: privyUser.wallet?.address,
         });
+      } else {
+        // If user exists but doesn't have name or avatar, generate them
+        if (!dbUser.name || !dbUser.avatar_url) {
+          const { generateRandomUsername, generateAvatarUrl } = await import("@/lib/utils");
+          
+          const updates: { name?: string; avatar_url?: string } = {};
+          
+          if (!dbUser.name) {
+            const randomUsername = generateRandomUsername();
+            updates.name = randomUsername
+              .split("-")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ");
+          }
+          
+          if (!dbUser.avatar_url) {
+            updates.avatar_url = generateAvatarUrl(
+              dbUser.name || dbUser.email || undefined
+            );
+          }
+          
+          if (Object.keys(updates).length > 0) {
+            const { data: updatedUser, error: updateError } = await supabase
+              .from("users")
+              .update(updates)
+              .eq("id", dbUser.id)
+              .select()
+              .single();
+            
+            if (!updateError && updatedUser) {
+              dbUser = updatedUser;
+            }
+          }
+        }
       }
 
       setUser(dbUser);
