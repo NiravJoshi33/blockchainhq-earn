@@ -38,7 +38,7 @@ const OpportunitiesDropdown = () => {
           className="hover:bg-transparent! hover:text-brand! cursor-pointer focus:outline-none! focus:ring-0!"
         >
           <BriefcaseIcon className="w-4 h-4" />
-          Browse Opportunities
+          Opportunities
           <ChevronDownIcon className="w-4 h-4" />
         </Button>
       </DropdownMenuTrigger>
