@@ -46,4 +46,34 @@ export async function createOpportunity(opportunity: Partial<Opportunity>) {
   return data;
 }
 
-// Add more CRUD operations...
+export async function updateOpportunity(
+  id: string,
+  updates: Partial<Opportunity>
+) {
+  const { data, error } = await supabase
+    .from("opportunities")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteOpportunity(id: string) {
+  const { error } = await supabase.from("opportunities").delete().eq("id", id);
+
+  if (error) throw error;
+}
+
+export async function getOpportunitiesBySponsor(sponsorId: string) {
+  const { data, error } = await supabase
+    .from("opportunities")
+    .select("*")
+    .eq("sponsor_id", sponsorId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data;
+}
