@@ -66,7 +66,7 @@ export function SubmissionItem({ submission, submitterUser }: SubmissionItemProp
                 )}
                 <Link
                   href={`/profile/${submitterUser.id}`}
-                  className="font-semibold text-foreground hover:text-primary hover:underline"
+                  className="font-semibold text-foreground hover:text-primary hover:underline cursor-pointer"
                 >
                   {submitterUser.name || 
                    (submitterUser.profile_data as any)?.username ||
@@ -77,7 +77,7 @@ export function SubmissionItem({ submission, submitterUser }: SubmissionItemProp
                   href={`https://testnet.bscscan.com/address/${submission.submitter}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-mono text-xs text-primary hover:underline flex items-center gap-1"
+                  className="font-mono text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   {submission.submitter.slice(0, 6)}...{submission.submitter.slice(-4)}
                   <ExternalLink className="h-3 w-3" />
@@ -88,7 +88,7 @@ export function SubmissionItem({ submission, submitterUser }: SubmissionItemProp
                 href={`https://testnet.bscscan.com/address/${submission.submitter}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-mono text-xs text-primary hover:underline flex items-center gap-1"
+                className="font-mono text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
                 {submission.submitter.slice(0, 6)}...{submission.submitter.slice(-4)}
                 <ExternalLink className="h-3 w-3" />
@@ -104,7 +104,7 @@ export function SubmissionItem({ submission, submitterUser }: SubmissionItemProp
               href={submission.submissionLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-primary hover:underline"
+              className="flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
             >
               <LinkIcon className="h-4 w-4" />
               Submission Link
@@ -115,7 +115,7 @@ export function SubmissionItem({ submission, submitterUser }: SubmissionItemProp
               href={submission.githubLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-primary hover:underline"
+              className="flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
             >
               <Github className="h-4 w-4" />
               GitHub Repository
@@ -126,7 +126,7 @@ export function SubmissionItem({ submission, submitterUser }: SubmissionItemProp
               href={submission.twitterLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-primary hover:underline"
+              className="flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
             >
               <Twitter className="h-4 w-4" />
               Project Twitter
@@ -137,7 +137,7 @@ export function SubmissionItem({ submission, submitterUser }: SubmissionItemProp
               href={submission.videoLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-primary hover:underline"
+              className="flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
             >
               <Youtube className="h-4 w-4" />
               Video Trailer
@@ -148,7 +148,7 @@ export function SubmissionItem({ submission, submitterUser }: SubmissionItemProp
               href={submission.indieFunLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-primary hover:underline"
+              className="flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
             >
               <LinkIcon className="h-4 w-4" />
               Indie.fun Page
@@ -159,7 +159,7 @@ export function SubmissionItem({ submission, submitterUser }: SubmissionItemProp
               href={submission.tweetLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-primary hover:underline"
+              className="flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
             >
               <Twitter className="h-4 w-4" />
               Tweet Link
@@ -170,7 +170,7 @@ export function SubmissionItem({ submission, submitterUser }: SubmissionItemProp
               href={submission.projectLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-primary hover:underline"
+              className="flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer"
             >
               <LinkIcon className="h-4 w-4" />
               Live Project

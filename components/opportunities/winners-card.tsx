@@ -148,7 +148,7 @@ export function WinnersCard({ contractBountyId, opportunity }: WinnersCardProps)
                       {user ? (
                         <Link
                           href={`/profile/${user.id}`}
-                          className="font-semibold text-foreground hover:text-primary hover:underline"
+                          className="font-semibold text-foreground hover:text-primary hover:underline cursor-pointer"
                         >
                           {user.name || (user.profile_data as any)?.username || "Unknown User"}
                         </Link>
@@ -160,7 +160,7 @@ export function WinnersCard({ contractBountyId, opportunity }: WinnersCardProps)
                           href={`https://testnet.bscscan.com/address/${winnerAddress}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-mono hover:underline flex items-center gap-1"
+                          className="font-mono hover:underline flex items-center gap-1 cursor-pointer"
                         >
                           {winnerAddress?.slice(0, 6)}...{winnerAddress?.slice(-4)}
                           <ExternalLink className="h-3 w-3" />

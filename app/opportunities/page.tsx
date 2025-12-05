@@ -22,8 +22,25 @@ export default function OpportunitiesPage() {
       : "all";
 
   const [opportunities, setOpportunities] = useState<OpportunityRow[]>([]);
+  const [allOpportunities, setAllOpportunities] = useState<OpportunityRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch all opportunities for stats (only once)
+  useEffect(() => {
+    async function fetchAllOpportunities() {
+      try {
+        const data = await getOpportunities({
+          status: "active",
+        });
+        setAllOpportunities(data || []);
+      } catch (error) {
+        console.error("Error fetching all opportunities:", error);
+      }
+    }
+    fetchAllOpportunities();
+  }, []);
+
+  // Fetch filtered opportunities based on selected type
   useEffect(() => {
     async function fetchOpportunities() {
       try {
@@ -56,13 +73,14 @@ export default function OpportunitiesPage() {
       ? opportunities
       : opportunities.filter((o) => o.type === selectedType);
 
+  // Calculate stats from all opportunities, not filtered ones
   const stats = {
-    all: opportunities.length,
-    bounty: opportunities.filter((o) => o.type === "bounty").length,
-    job: opportunities.filter((o) => o.type === "job").length,
-    project: opportunities.filter((o) => o.type === "project").length,
-    grant: opportunities.filter((o) => o.type === "grant").length,
-    hackathon: opportunities.filter((o) => o.type === "hackathon").length,
+    all: allOpportunities.length,
+    bounty: allOpportunities.filter((o) => o.type === "bounty").length,
+    job: allOpportunities.filter((o) => o.type === "job").length,
+    project: allOpportunities.filter((o) => o.type === "project").length,
+    grant: allOpportunities.filter((o) => o.type === "grant").length,
+    hackathon: allOpportunities.filter((o) => o.type === "hackathon").length,
   };
 
   return (

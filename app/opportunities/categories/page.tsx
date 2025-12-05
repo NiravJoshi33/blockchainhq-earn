@@ -29,8 +29,20 @@ export default function CategoriesPage() {
   );
   const [opportunities, setOpportunities] = useState<OpportunityRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categoryCounts, setCategoryCounts] = useState<Record<number, number>>({});
 
   const { bountyIds, isLoading: isLoadingBounties } = useActiveBountiesByCategory(selectedCategory);
+
+  // Initialize counts to 0 for all categories
+  useEffect(() => {
+    const initialCounts: Record<number, number> = {};
+    Object.values(ContractBountyCategory)
+      .filter((cat) => typeof cat === "number")
+      .forEach((category) => {
+        initialCounts[category as number] = 0;
+      });
+    setCategoryCounts(initialCounts);
+  }, []);
 
   // Fetch opportunities from database that match the on-chain bounty IDs
   useEffect(() => {
@@ -55,6 +67,12 @@ export default function CategoriesPage() {
         });
 
         setOpportunities(matchingOpportunities);
+        
+        // Update count for this category
+        setCategoryCounts(prev => ({
+          ...prev,
+          [selectedCategory]: matchingOpportunities.length
+        }));
       } catch (error) {
         console.error("Error fetching opportunities:", error);
       } finally {
@@ -65,7 +83,7 @@ export default function CategoriesPage() {
     if (!isLoadingBounties && bountyIds !== undefined) {
       fetchOpportunities();
     }
-  }, [bountyIds, isLoadingBounties]);
+  }, [bountyIds, isLoadingBounties, selectedCategory]);
 
   return (
     <div className="container mx-auto py-8 max-w-7xl space-y-6">
@@ -103,9 +121,12 @@ export default function CategoriesPage() {
               <TabsTrigger
                 key={category}
                 value={category.toString()}
-                className="gap-2"
+                className="gap-2 cursor-pointer"
               >
                 {categoryLabels[category as ContractBountyCategory]}
+                <span className="text-xs opacity-60">
+                  ({categoryCounts[category] ?? 0})
+                </span>
               </TabsTrigger>
             ))}
         </TabsList>

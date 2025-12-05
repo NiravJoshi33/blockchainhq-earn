@@ -30,7 +30,7 @@ export function TransactionDetailsCard({
               href={`https://testnet.bscscan.com/tx/${transactionHash}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary hover:underline flex items-center gap-1 text-sm font-mono"
+              className="text-primary hover:underline flex items-center gap-1 text-sm font-mono cursor-pointer"
             >
               {transactionHash.slice(0, 10)}...
               {transactionHash.slice(-8)}
@@ -53,7 +53,7 @@ export function TransactionDetailsCard({
             href={`https://testnet.bscscan.com/tx/${transactionHash}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-primary hover:underline flex items-center gap-1"
+            className="text-sm text-primary hover:underline flex items-center gap-1 cursor-pointer"
           >
             View on BSCScan
             <ExternalLink className="h-3 w-3" />
