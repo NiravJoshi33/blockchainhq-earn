@@ -162,15 +162,19 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
                 {getCategoryText()}
               </Badge>
             )}
-            {opportunity.tags.slice(0, 3).map((tag: string) => (
-              <Badge key={tag} variant="secondary" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-            {opportunity.tags.length > 3 && (
-              <span className="text-xs text-muted-foreground">
-                +{opportunity.tags.length - 3} more
-              </span>
+            {opportunity.tags && opportunity.tags.length > 0 && (
+              <>
+                {opportunity.tags.slice(0, 3).map((tag: string) => (
+                  <Badge key={tag} variant="secondary" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+                {opportunity.tags.length > 3 && (
+                  <span className="text-xs text-muted-foreground">
+                    +{opportunity.tags.length - 3} more
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>

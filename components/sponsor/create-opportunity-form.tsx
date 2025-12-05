@@ -44,6 +44,7 @@ import {
   getBountyIdFromReceipt,
   type ContractBountyCategory,
 } from "@/lib/contract/contract-utils";
+import { useNetworkSwitch } from "@/lib/contract/use-network-switch";
 
 type OpportunityInsert =
   Database["public"]["Tables"]["opportunities"]["Insert"];
@@ -88,15 +89,33 @@ export function CreateOpportunityForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const processedTxHash = useRef<string | null>(null);
   
+  // Network switching hook
+  const { ensureCorrectNetwork, isSwitching, isCorrectNetwork } = useNetworkSwitch();
+  
   // Contract interaction hooks
   const { writeContract, data: hash, isPending: isContractPending, error: contractError } = useWriteContract();
   const {
     isLoading: isConfirming,
     isSuccess: isConfirmed,
     data: receipt,
+    error: receiptError,
   } = useWaitForTransactionReceipt({
     hash,
+    query: {
+      enabled: !!hash,
+    },
   });
+  
+  // Log receipt status for debugging
+  useEffect(() => {
+    if (hash) {
+      console.log("Transaction hash:", hash);
+      console.log("Is confirming:", isConfirming);
+      console.log("Is confirmed:", isConfirmed);
+      console.log("Receipt:", receipt);
+      console.log("Receipt error:", receiptError);
+    }
+  }, [hash, isConfirming, isConfirmed, receipt, receiptError]);
 
   const handleAddTag = () => {
     if (currentTag.trim() && !tags.includes(currentTag.trim())) {
@@ -123,24 +142,17 @@ export function CreateOpportunityForm({
   // Handle contract transaction completion
   const handleContractSuccess = async (txHash: `0x${string}`, receipt: any) => {
     try {
+      console.log("Transaction confirmed, processing receipt...", { txHash, receipt });
+      
+      // Validate user exists
+      if (!user?.id) {
+        throw new Error("User not found. Please refresh and try again.");
+      }
+      
       // Extract bounty ID from transaction receipt
       const contractBountyId = getBountyIdFromReceipt(receipt);
+      console.log("Extracted bounty ID:", contractBountyId);
       
-      // Create comprehensive description for contract (includes title and description)
-      const contractDescription = `${formData.title}\n\n${formData.description}`;
-      
-      // Convert deadline to Unix timestamp
-      const deadlineTimestamp = Math.floor(new Date(formData.deadline).getTime() / 1000);
-      
-      // Map category to contract category
-      const contractCategory = mapFormCategoryToContract(
-        formData.category,
-        opportunityType
-      );
-      
-      // Convert amount to wei
-      const stakeAmount = convertToWei(parseFloat(formData.amount), formData.currency);
-
       // Prepare opportunity data with contract information
       const opportunityData: Database["public"]["Tables"]["opportunities"]["Insert"] =
         {
@@ -174,23 +186,24 @@ export function CreateOpportunityForm({
 
       // Save to database
       const savedOpportunity = await createOpportunity(opportunityData);
+      console.log("Opportunity saved to database:", savedOpportunity.id);
       
       // Try to update with contract information
       // Note: You'll need to add these columns to your opportunities table:
       // - contract_bounty_id (text or bigint)
       // - transaction_hash (text)
-      if (contractBountyId !== null) {
+      if (contractBountyId !== null && contractBountyId !== undefined) {
         try {
           await updateOpportunity(savedOpportunity.id, {
             // These fields will work once you add them to your database schema
-            contract_bounty_id: contractBountyId.toString(),
+            contract_bounty_id: String(contractBountyId),
             transaction_hash: txHash,
           } as any);
           console.log("Contract info saved to database");
         } catch (updateError) {
           // If fields don't exist in schema, log the info for manual addition
           console.log("Note: Add contract_bounty_id and transaction_hash columns to opportunities table");
-          console.log("Contract Bounty ID:", contractBountyId.toString());
+          console.log("Contract Bounty ID:", String(contractBountyId));
           console.log("Transaction Hash:", txHash);
           console.log("Saved Opportunity ID:", savedOpportunity.id);
         }
@@ -200,9 +213,11 @@ export function CreateOpportunityForm({
           await updateOpportunity(savedOpportunity.id, {
             transaction_hash: txHash,
           } as any);
+          console.log("Transaction hash saved (bounty ID not found in receipt)");
         } catch (updateError) {
           console.log("Transaction Hash:", txHash);
           console.log("Saved Opportunity ID:", savedOpportunity.id);
+          console.log("Receipt logs:", receipt?.logs);
         }
       }
 
@@ -212,6 +227,7 @@ export function CreateOpportunityForm({
       onSuccess?.();
     } catch (error: unknown) {
       console.error("Error saving opportunity to database:", error);
+      console.error("Error details:", error instanceof Error ? error.stack : error);
       const errorMessage =
         error instanceof Error ? error.message : "Please try again.";
       toast.error("Contract transaction succeeded but failed to save to database", {
@@ -226,9 +242,58 @@ export function CreateOpportunityForm({
   useEffect(() => {
     if (isConfirmed && receipt && hash && processedTxHash.current !== hash) {
       processedTxHash.current = hash;
+      // Dismiss the loading toast
+      toast.dismiss("create-bounty");
+      console.log("Transaction confirmed, calling handleContractSuccess", { hash, receipt });
       handleContractSuccess(hash, receipt);
     }
   }, [isConfirmed, receipt, hash]);
+  
+  // Fallback: If transaction hash exists but receipt isn't detected after 30 seconds,
+  // allow manual processing (transaction might be confirmed but wagmi hasn't detected it)
+  useEffect(() => {
+    if (hash && !isConfirmed && !isConfirming && !receiptError) {
+      const timeout = setTimeout(() => {
+        // Check if transaction is already processed
+        if (processedTxHash.current === hash) {
+          return;
+        }
+        
+        // Show option to manually process if transaction is confirmed on chain
+        toast.info("Transaction may be confirmed. Checking status...", {
+          id: "tx-timeout",
+          duration: 10000,
+        });
+      }, 30000); // 30 seconds
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [hash, isConfirmed, isConfirming, receiptError]);
+  
+  // Handle contract errors
+  useEffect(() => {
+    if (contractError) {
+      toast.dismiss("create-bounty");
+      toast.error("Transaction failed", {
+        description: contractError.message || "Please try again",
+      });
+      setIsSubmitting(false);
+    }
+  }, [contractError]);
+  
+  // Handle receipt errors
+  useEffect(() => {
+    if (receiptError) {
+      toast.dismiss("create-bounty");
+      console.error("Receipt error:", receiptError);
+      // Even if receipt fetch fails, transaction might be successful
+      // Show info message
+      toast.warning("Transaction may have succeeded but receipt could not be fetched", {
+        description: "Please check the transaction on BSCScan and manually verify",
+      });
+      setIsSubmitting(false);
+    }
+  }, [receiptError]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -252,6 +317,15 @@ export function CreateOpportunityForm({
     setIsSubmitting(true);
 
     try {
+      // Ensure user is on the correct network (BNB Testnet - Chain ID 97)
+      const isOnCorrectNetwork = await ensureCorrectNetwork();
+      
+      if (!isOnCorrectNetwork) {
+        setIsSubmitting(false);
+        toast.error("Please switch to BNB Testnet to continue");
+        return;
+      }
+
       // Prepare contract call parameters
       const contractDescription = `${formData.title}\n\n${formData.description}`;
       const deadlineTimestamp = Math.floor(new Date(formData.deadline).getTime() / 1000);
@@ -275,6 +349,7 @@ export function CreateOpportunityForm({
           contractCategory,
         ],
         value: stakeAmount,
+        chainId: 97, // Explicitly set chain ID
       });
 
       toast.loading("Waiting for transaction confirmation...", { id: "create-bounty" });

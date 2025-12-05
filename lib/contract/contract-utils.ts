@@ -57,13 +57,29 @@ export interface CreateBountyParams {
 // Get bounty ID from transaction receipt by parsing events
 export function getBountyIdFromReceipt(receipt: any): bigint | null {
   try {
-    if (!receipt?.logs) {
+    if (!receipt) {
+      console.warn("Receipt is null or undefined");
       return null;
     }
 
+    // Handle different receipt formats (wagmi might return different structures)
+    const logs = receipt.logs || receipt.log || [];
+    
+    if (!logs || logs.length === 0) {
+      console.warn("No logs found in receipt", receipt);
+      return null;
+    }
+
+    console.log("Parsing receipt logs:", logs.length, "logs found");
+
     // Find the BountyCreated event in the logs
-    for (const log of receipt.logs) {
+    for (const log of logs) {
       try {
+        // Ensure log has required properties
+        if (!log.topics || !log.data) {
+          continue;
+        }
+
         // Try to decode as BountyCreated event
         // Event signature: BountyCreated(uint256 indexed bountyId, address indexed creator, uint256 stakeAmount, uint256 deadline, string description, enum BountyCategory category)
         const decoded = decodeEventLog({
@@ -75,7 +91,15 @@ export function getBountyIdFromReceipt(receipt: any): bigint | null {
         // Check if this is the BountyCreated event
         if (decoded.eventName === "BountyCreated") {
           // The bountyId is the first argument
-          return decoded.args?.[0] as bigint;
+          const bountyId = decoded.args?.[0];
+          if (bountyId !== undefined && bountyId !== null) {
+            console.log("Found BountyCreated event, bounty ID:", bountyId);
+            // Handle both bigint and number types
+            if (typeof bountyId === "bigint") {
+              return bountyId;
+            }
+            return BigInt(String(bountyId));
+          }
         }
       } catch (decodeError) {
         // Not the event we're looking for, continue
@@ -85,19 +109,26 @@ export function getBountyIdFromReceipt(receipt: any): bigint | null {
 
     // Fallback: try to extract from topics if decodeEventLog fails
     // The BountyCreated event has bountyId as the first indexed parameter (topics[1])
-    for (const log of receipt.logs) {
-      if (log.topics && log.topics.length >= 2 && log.address?.toLowerCase() === blockchainBountyAddress.toLowerCase()) {
-        // The event signature hash is in topics[0]
-        // The bountyId (first indexed param) is in topics[1]
-        try {
-          const bountyId = BigInt(log.topics[1]);
-          return bountyId;
-        } catch (e) {
-          continue;
+    for (const log of logs) {
+      if (log.topics && log.topics.length >= 2) {
+        // Check if this log is from our contract
+        const logAddress = log.address || log.contractAddress;
+        if (logAddress?.toLowerCase() === blockchainBountyAddress.toLowerCase()) {
+          // The event signature hash is in topics[0]
+          // The bountyId (first indexed param) is in topics[1]
+          try {
+            const bountyId = BigInt(log.topics[1]);
+            console.log("Extracted bounty ID from topics:", bountyId);
+            return bountyId;
+          } catch (e) {
+            console.warn("Failed to parse bounty ID from topics:", e);
+            continue;
+          }
         }
       }
     }
 
+    console.warn("Could not find BountyCreated event in receipt logs");
     return null;
   } catch (err) {
     console.error("Error parsing bounty ID from receipt:", err);
