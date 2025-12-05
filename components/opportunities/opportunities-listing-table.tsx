@@ -43,6 +43,7 @@ import {
   Users,
   Clock,
 } from "lucide-react";
+import { useRole } from "@/contexts/role-context";
 
 interface OpportunitiesListingTableProps {
   opportunities: Opportunity[];
@@ -50,6 +51,7 @@ interface OpportunitiesListingTableProps {
 
 // Custom card-like row component
 function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+  const { role } = useRole();
   const [isFavorite, setIsFavorite] = React.useState(false);
 
   const getTypeColor = (type: string) => {
@@ -231,18 +233,20 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
               return `${days} day${days > 1 ? "s" : ""} ago`;
             })()}
           </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setIsFavorite(!isFavorite)}
-            className="mt-2"
-          >
-            <Heart
-              className={`h-5 w-5 ${
-                isFavorite ? "fill-red-500 text-red-500" : ""
-              }`}
-            />
-          </Button>
+          {role === "hunter" && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setIsFavorite(!isFavorite)}
+              className="mt-2"
+            >
+              <Heart
+                className={`h-5 w-5 ${
+                  isFavorite ? "fill-red-500 text-red-500" : ""
+                }`}
+              />
+            </Button>
+          )}
         </div>
       </div>
     </div>
