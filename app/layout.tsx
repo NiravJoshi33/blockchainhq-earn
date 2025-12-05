@@ -34,12 +34,12 @@ export default function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <PrivyProviderWrapper>
-            <RoleProvider>
-              <UserProvider>
+            <UserProvider>
+              <RoleProvider>
                 <Navbar />
                 {children}
-              </UserProvider>
-            </RoleProvider>
+              </RoleProvider>
+            </UserProvider>
           </PrivyProviderWrapper>
         </ThemeProvider>
       </body>

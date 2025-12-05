@@ -1,5 +1,9 @@
+import { Opportunity } from "@/lib/types/opportunities";
 import { supabase } from "../client";
-import type { Opportunity } from "@/lib/types/opportunities";
+import type { Database } from "../database.types";
+
+type OpportunityInsert =
+  Database["public"]["Tables"]["opportunities"]["Insert"];
 
 export async function getOpportunities(filters?: {
   type?: string;
@@ -35,7 +39,7 @@ export async function getOpportunityById(id: string) {
   return data;
 }
 
-export async function createOpportunity(opportunity: Partial<Opportunity>) {
+export async function createOpportunity(opportunity: OpportunityInsert) {
   const { data, error } = await supabase
     .from("opportunities")
     .insert(opportunity)

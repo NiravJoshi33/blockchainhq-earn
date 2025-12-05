@@ -1,6 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useUser } from "./user-context";
+import { updateUserRole } from "@/lib/supabase/services/users";
 
 export type UserRole = "hunter" | "sponsor";
 
@@ -13,19 +15,35 @@ interface RoleContextType {
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: React.ReactNode }) {
+  const { user, refreshUser } = useUser();
   const [role, setRoleState] = useState<UserRole>("hunter");
 
-  // Load role from localStorage on mount
+  // Sync role from database user
   useEffect(() => {
-    const savedRole = localStorage.getItem("userRole") as UserRole;
-    if (savedRole && (savedRole === "hunter" || savedRole === "sponsor")) {
-      setRoleState(savedRole);
+    if (user?.role) {
+      setRoleState(user.role as UserRole);
+    } else {
+      // Fallback to localStorage if no user yet
+      const savedRole = localStorage.getItem("userRole") as UserRole;
+      if (savedRole && (savedRole === "hunter" || savedRole === "sponsor")) {
+        setRoleState(savedRole);
+      }
     }
-  }, []);
+  }, [user]);
 
-  const setRole = (newRole: UserRole) => {
+  const setRole = async (newRole: UserRole) => {
     setRoleState(newRole);
     localStorage.setItem("userRole", newRole);
+
+    // Update in database if user exists
+    if (user?.id) {
+      try {
+        await updateUserRole(user.id, newRole);
+        await refreshUser();
+      } catch (error) {
+        console.error("Error updating role:", error);
+      }
+    }
   };
 
   const toggleRole = () => {

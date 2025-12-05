@@ -27,7 +27,14 @@ import type {
   JobType,
   ProjectDuration,
   DifficultyLevel,
+  Opportunity,
 } from "@/lib/types/opportunities";
+import { useUser } from "@/contexts/user-context";
+import { createOpportunity } from "@/lib/supabase/services/opportunities";
+import type { Database } from "@/lib/supabase/database.types";
+
+type OpportunityInsert =
+  Database["public"]["Tables"]["opportunities"]["Insert"];
 
 interface CreateOpportunityFormProps {
   onSuccess?: () => void;
@@ -54,12 +61,18 @@ export function CreateOpportunityForm({
     location: "",
     submissionUrl: "",
     contactEmail: "",
+    detailedDescription: "",
+    submissionGuidelines: "",
+    aboutOrganization: "",
   });
 
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [currentSkill, setCurrentSkill] = useState("");
+
+  const { user } = useUser();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddTag = () => {
     if (currentTag.trim() && !tags.includes(currentTag.trim())) {
@@ -83,16 +96,54 @@ export function CreateOpportunityForm({
     setSkills(skills.filter((s) => s !== skill));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // TODO: Implement API call to create opportunity
-    console.log("Creating opportunity:", {
-      type: opportunityType,
-      ...formData,
-      tags,
-      requiredSkills: skills,
-    });
-    onSuccess?.();
+
+    if (!user?.id) {
+      alert("Please connect your wallet first");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const opportunityData: Database["public"]["Tables"]["opportunities"]["Insert"] =
+        {
+          type: opportunityType,
+          title: formData.title,
+          description: formData.description,
+          organization: formData.organization,
+          sponsor_id: user.id,
+          amount: parseFloat(formData.amount),
+          currency: formData.currency,
+          deadline: new Date(formData.deadline).toISOString(), // Database expects ISO string
+          difficulty_level: formData.difficultyLevel,
+          tags,
+          required_skills: skills,
+          contact_email: formData.contactEmail,
+          submission_url: formData.submissionUrl || null,
+          detailed_description: formData.detailedDescription || null,
+          submission_guidelines: formData.submissionGuidelines || null,
+          about_organization: formData.aboutOrganization || null,
+
+          // Type-specific fields
+          ...(opportunityType === "bounty" && { category: formData.category }),
+          ...(opportunityType === "job" && {
+            job_type: formData.jobType,
+            location: formData.location,
+          }),
+          ...(opportunityType === "project" && { duration: formData.duration }),
+        };
+
+      await createOpportunity(opportunityData);
+      alert("Opportunity created successfully!");
+      onSuccess?.();
+    } catch (error) {
+      console.error("Error creating opportunity:", error);
+      alert("Failed to create opportunity. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -455,6 +506,66 @@ export function CreateOpportunityForm({
               }
             />
           </div>
+
+          {/* Detailed Description */}
+          <div className="space-y-2">
+            <Label htmlFor="detailedDescription">
+              Detailed Description (Markdown supported)
+            </Label>
+            <Textarea
+              id="detailedDescription"
+              placeholder="## Mission&#10;Describe your opportunity in detail...&#10;&#10;## What You'll Build&#10;- Feature 1&#10;- Feature 2"
+              value={formData.detailedDescription}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setFormData({
+                  ...formData,
+                  detailedDescription: e.target.value,
+                })
+              }
+              rows={12}
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Supports Markdown: **bold**, *italic*, [links](url), ## headers, -
+              lists
+            </p>
+          </div>
+
+          {/* Submission Guidelines */}
+          <div className="space-y-2">
+            <Label htmlFor="submissionGuidelines">
+              Submission Guidelines (Markdown supported)
+            </Label>
+            <Textarea
+              id="submissionGuidelines"
+              placeholder="## How to Submit&#10;1. Create your project&#10;2. Submit via [this form](url)&#10;3. Include required materials"
+              value={formData.submissionGuidelines}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setFormData({
+                  ...formData,
+                  submissionGuidelines: e.target.value,
+                })
+              }
+              rows={8}
+              className="font-mono text-sm"
+            />
+          </div>
+
+          {/* About Organization */}
+          <div className="space-y-2">
+            <Label htmlFor="aboutOrganization">
+              About Your Organization (Optional)
+            </Label>
+            <Textarea
+              id="aboutOrganization"
+              placeholder="Tell applicants about your company or project..."
+              value={formData.aboutOrganization}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setFormData({ ...formData, aboutOrganization: e.target.value })
+              }
+              rows={4}
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -465,8 +576,8 @@ export function CreateOpportunityForm({
             Cancel
           </Button>
         )}
-        <Button type="submit" variant="default">
-          Create Opportunity
+        <Button type="submit" variant="default" disabled={isSubmitting}>
+          {isSubmitting ? "Creating..." : "Create Opportunity"}
         </Button>
       </div>
     </form>

@@ -1,46 +1,65 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { OpportunitiesListingTable } from "@/components/opportunities/opportunities-listing-table";
-import { mockOpportunities } from "@/lib/mock-data/opportunities";
+import { getOpportunities } from "@/lib/supabase/services/opportunities";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { OpportunityType } from "@/lib/types/opportunities";
+import type { Opportunity, OpportunityType } from "@/lib/types/opportunities";
 
 export default function OpportunitiesPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const typeParam = searchParams.get("type");
 
-  // Derive selected type from URL parameter
   const selectedType: OpportunityType | "all" =
     typeParam &&
     ["bounty", "job", "project", "grant", "hackathon"].includes(typeParam)
       ? (typeParam as OpportunityType)
       : "all";
 
-  // Handle tab change and update URL
-  const handleTabChange = (value: string) => {
-    const newType = value as OpportunityType | "all";
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    if (newType === "all") {
+  useEffect(() => {
+    async function fetchOpportunities() {
+      try {
+        setLoading(true);
+        const data = await getOpportunities({
+          type: selectedType === "all" ? undefined : selectedType,
+          status: "active",
+        });
+        setOpportunities(data || []);
+      } catch (error) {
+        console.error("Error fetching opportunities:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchOpportunities();
+  }, [selectedType]);
+
+  const handleTabChange = (value: string) => {
+    if (value === "all") {
       router.push("/opportunities");
     } else {
-      router.push(`/opportunities?type=${newType}`);
+      router.push(`/opportunities?type=${value}`);
     }
   };
 
   const filteredOpportunities =
     selectedType === "all"
-      ? mockOpportunities
-      : mockOpportunities.filter((o) => o.type === selectedType);
+      ? opportunities
+      : opportunities.filter((o) => o.type === selectedType);
 
   const stats = {
-    all: mockOpportunities.length,
-    bounty: mockOpportunities.filter((o) => o.type === "bounty").length,
-    job: mockOpportunities.filter((o) => o.type === "job").length,
-    project: mockOpportunities.filter((o) => o.type === "project").length,
-    grant: mockOpportunities.filter((o) => o.type === "grant").length,
-    hackathon: mockOpportunities.filter((o) => o.type === "hackathon").length,
+    all: opportunities.length,
+    bounty: opportunities.filter((o) => o.type === "bounty").length,
+    job: opportunities.filter((o) => o.type === "job").length,
+    project: opportunities.filter((o) => o.type === "project").length,
+    grant: opportunities.filter((o) => o.type === "grant").length,
+    hackathon: opportunities.filter((o) => o.type === "hackathon").length,
   };
 
   return (
@@ -49,8 +68,9 @@ export default function OpportunitiesPage() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">Discover Opportunities</h1>
         <p className="text-muted-foreground">
-          Showing {filteredOpportunities.length} of {mockOpportunities.length}{" "}
-          opportunities from top organizations
+          {loading
+            ? "Loading..."
+            : `Showing ${filteredOpportunities.length} of ${opportunities.length} opportunities from top organizations`}
         </p>
       </div>
 
@@ -88,7 +108,11 @@ export default function OpportunitiesPage() {
         </TabsList>
 
         <TabsContent value={selectedType} className="space-y-4">
-          <OpportunitiesListingTable opportunities={filteredOpportunities} />
+          {loading ? (
+            <div className="text-center py-12">Loading opportunities...</div>
+          ) : (
+            <OpportunitiesListingTable opportunities={filteredOpportunities} />
+          )}
         </TabsContent>
       </Tabs>
     </div>

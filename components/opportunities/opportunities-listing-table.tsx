@@ -44,6 +44,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useRole } from "@/contexts/role-context";
+import Link from "next/link";
 
 interface OpportunitiesListingTableProps {
   opportunities: Opportunity[];
@@ -120,136 +121,141 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
   };
 
   return (
-    <div className="flex items-start gap-6 p-6 hover:bg-accent/50 transition-colors rounded-lg group">
-      {/* Main Content */}
-      <div className="flex-1 space-y-3">
-        {/* Title and Organization */}
-        <div>
-          <h3 className="text-lg font-semibold mb-1 group-hover:text-primary transition-colors">
-            {opportunity.title}
-          </h3>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Briefcase className="h-3.5 w-3.5" />
-            <span>{opportunity.organization}</span>
-            {opportunity.type === "job" && "location" in opportunity && (
-              <>
-                <span>•</span>
-                <MapPin className="h-3.5 w-3.5" />
-                <span>{opportunity.location}</span>
-              </>
+    <Link href={`/opportunities/${opportunity.id}`} className="block">
+      <div className="flex items-start gap-6 p-6 hover:bg-accent/50 transition-colors rounded-lg group cursor-pointer">
+        {/* Main Content */}
+        <div className="flex-1 space-y-3">
+          {/* Title and Organization */}
+          <div>
+            <h3 className="text-lg font-semibold mb-1 group-hover:text-primary transition-colors">
+              {opportunity.title}
+            </h3>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Briefcase className="h-3.5 w-3.5" />
+              <span>{opportunity.organization}</span>
+              {opportunity.type === "job" && "location" in opportunity && (
+                <>
+                  <span>•</span>
+                  <MapPin className="h-3.5 w-3.5" />
+                  <span>{opportunity.location}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Tags and Badges */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className={getTypeColor(opportunity.type)}>
+              <Tag className="h-3 w-3 mr-1" />
+              {opportunity.type.charAt(0).toUpperCase() +
+                opportunity.type.slice(1)}
+            </Badge>
+            <Badge
+              variant="outline"
+              className={getDifficultyColor(opportunity.difficultyLevel)}
+            >
+              {opportunity.difficultyLevel}
+            </Badge>
+            {getCategoryText() && (
+              <Badge variant="secondary" className="text-xs">
+                {getCategoryText()}
+              </Badge>
+            )}
+            {opportunity.tags.slice(0, 3).map((tag) => (
+              <Badge key={tag} variant="secondary" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
+            {opportunity.tags.length > 3 && (
+              <span className="text-xs text-muted-foreground">
+                +{opportunity.tags.length - 3} more
+              </span>
             )}
           </div>
         </div>
 
-        {/* Tags and Badges */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className={getTypeColor(opportunity.type)}>
-            <Tag className="h-3 w-3 mr-1" />
-            {opportunity.type.charAt(0).toUpperCase() +
-              opportunity.type.slice(1)}
-          </Badge>
-          <Badge
-            variant="outline"
-            className={getDifficultyColor(opportunity.difficultyLevel)}
-          >
-            {opportunity.difficultyLevel}
-          </Badge>
-          {getCategoryText() && (
-            <Badge variant="secondary" className="text-xs">
-              {getCategoryText()}
-            </Badge>
-          )}
-          {opportunity.tags.slice(0, 3).map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs">
-              {tag}
-            </Badge>
-          ))}
-          {opportunity.tags.length > 3 && (
-            <span className="text-xs text-muted-foreground">
-              +{opportunity.tags.length - 3} more
-            </span>
-          )}
-        </div>
-      </div>
+        {/* Metrics */}
+        <div className="flex items-start gap-8 shrink-0">
+          {/* Reward */}
+          <div className="text-center min-w-[100px]">
+            <div className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
+              <DollarSign className="h-3 w-3" />
+              Reward
+            </div>
+            <div className="text-lg font-bold">
+              {opportunity.amount >= 1000
+                ? `$${(opportunity.amount / 1000).toFixed(1)}k`
+                : `$${opportunity.amount}`}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {opportunity.currency}
+            </div>
+          </div>
 
-      {/* Metrics */}
-      <div className="flex items-start gap-8 shrink-0">
-        {/* Reward */}
-        <div className="text-center min-w-[100px]">
-          <div className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
-            <DollarSign className="h-3 w-3" />
-            Reward
+          {/* Applicants */}
+          <div className="text-center min-w-[100px]">
+            <div className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
+              <Users className="h-3 w-3" />
+              Applicants
+            </div>
+            <div className="text-lg font-bold">
+              {opportunity.applicants || 0}
+            </div>
+            <div className="text-xs text-muted-foreground">total</div>
           </div>
-          <div className="text-lg font-bold">
-            {opportunity.amount >= 1000
-              ? `$${(opportunity.amount / 1000).toFixed(1)}k`
-              : `$${opportunity.amount}`}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {opportunity.currency}
-          </div>
-        </div>
 
-        {/* Applicants */}
-        <div className="text-center min-w-[100px]">
-          <div className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
-            <Users className="h-3 w-3" />
-            Applicants
-          </div>
-          <div className="text-lg font-bold">{opportunity.applicants || 0}</div>
-          <div className="text-xs text-muted-foreground">total</div>
-        </div>
-
-        {/* Deadline */}
-        <div className="text-center min-w-[100px]">
-          <div className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
-            <Clock className="h-3 w-3" />
-            Deadline
-          </div>
-          <div
-            className={`text-lg font-bold ${
-              deadline.urgent ? "text-orange-500" : ""
-            }`}
-          >
-            {deadline.text.split(" ")[0]}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {deadline.text.includes("day")
-              ? "days"
-              : deadline.text.split(" ")[1] || ""}
-          </div>
-        </div>
-
-        {/* Time Posted & Favorite */}
-        <div className="flex flex-col items-center justify-between h-full min-w-[120px]">
-          <div className="text-xs text-muted-foreground">
-            {(() => {
-              const now = new Date().getTime();
-              const diff = now - opportunity.createdAt;
-              const hours = Math.floor(diff / (1000 * 60 * 60));
-              if (hours < 1) return "Just now";
-              if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-              const days = Math.floor(hours / 24);
-              return `${days} day${days > 1 ? "s" : ""} ago`;
-            })()}
-          </div>
-          {role === "hunter" && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setIsFavorite(!isFavorite)}
-              className="mt-2"
+          {/* Deadline */}
+          <div className="text-center min-w-[100px]">
+            <div className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
+              <Clock className="h-3 w-3" />
+              Deadline
+            </div>
+            <div
+              className={`text-lg font-bold ${
+                deadline.urgent ? "text-orange-500" : ""
+              }`}
             >
-              <Heart
-                className={`h-5 w-5 ${
-                  isFavorite ? "fill-red-500 text-red-500" : ""
-                }`}
-              />
-            </Button>
-          )}
+              {deadline.text.split(" ")[0]}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {deadline.text.includes("day")
+                ? "days"
+                : deadline.text.split(" ")[1] || ""}
+            </div>
+          </div>
+
+          {/* Time Posted & Favorite */}
+          <div className="flex flex-col items-center justify-between h-full min-w-[120px]">
+            <div className="text-xs text-muted-foreground">
+              {(() => {
+                const now = new Date().getTime();
+                const diff = now - opportunity.createdAt;
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                if (hours < 1) return "Just now";
+                if (hours < 24)
+                  return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+                const days = Math.floor(hours / 24);
+                return `${days} day${days > 1 ? "s" : ""} ago`;
+              })()}
+            </div>
+            {role === "hunter" && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setIsFavorite(!isFavorite)}
+                className="mt-2"
+              >
+                <Heart
+                  className={`h-5 w-5 ${
+                    isFavorite ? "fill-red-500 text-red-500" : ""
+                  }`}
+                />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
