@@ -46,6 +46,7 @@ import {
 import { useRole } from "@/contexts/role-context";
 import Link from "next/link";
 import { ApplicantCount } from "./applicant-count";
+import { formatTimeAgo } from "@/lib/utils";
 
 interface OpportunitiesListingTableProps {
   opportunities: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -233,16 +234,7 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
           {/* Time Posted & Favorite */}
           <div className="flex flex-col items-center justify-between h-full min-w-[120px]">
             <div className="text-xs text-muted-foreground">
-              {(() => {
-                const now = new Date().getTime();
-                const diff = now - opportunity.createdAt;
-                const hours = Math.floor(diff / (1000 * 60 * 60));
-                if (hours < 1) return "Just now";
-                if (hours < 24)
-                  return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-                const days = Math.floor(hours / 24);
-                return `${days} day${days > 1 ? "s" : ""} ago`;
-              })()}
+              {formatTimeAgo(opportunity.created_at || opportunity.createdAt)}
             </div>
             {role === "hunter" && (
               <Button

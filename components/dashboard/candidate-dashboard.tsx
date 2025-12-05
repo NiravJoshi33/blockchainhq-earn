@@ -28,12 +28,13 @@ import {
 import { mockOpportunities } from "@/lib/mock-data/opportunities";
 import Link from "next/link";
 import { useUser } from "@/contexts/user-context";
-import { usePrivy } from "@privy-io/react-auth";
+import { useWallets } from "@privy-io/react-auth";
 import { getUserStatistics } from "@/lib/supabase/services/statistics";
+import { formatTimeAgo } from "@/lib/utils";
 
 export function CandidateDashboard() {
   const { user } = useUser();
-  const { wallets } = usePrivy();
+  const { wallets } = useWallets();
   const [userStats, setUserStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -131,14 +132,6 @@ export function CandidateDashboard() {
     }
   };
 
-  const formatTimeAgo = (timestamp: number) => {
-    const now = new Date().getTime();
-    const diff = now - timestamp;
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Today";
-    if (days === 1) return "Yesterday";
-    return `${days} days ago`;
-  };
 
   return (
     <div className="container mx-auto py-8 max-w-7xl space-y-8">
