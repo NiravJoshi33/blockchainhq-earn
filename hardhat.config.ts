@@ -1,21 +1,19 @@
-import hardhatToolboxViemPlugin from "@nomicfoundation/hardhat-toolbox-viem";
+import hardhatToolboxMochaEthersPlugin from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
 import { configVariable, defineConfig } from "hardhat/config";
+import { config } from "dotenv";
+config();
+ 
+const BSCTESTNET_RPC_URL = process.env.BSCTESTNET_RPC_URL as string;
+const BSCTESTNET_PRIVATE_KEY = process.env.BSCTESTNET_PRIVATE_KEY as string;
 
 export default defineConfig({
-  plugins: [hardhatToolboxViemPlugin],
+  plugins: [hardhatToolboxMochaEthersPlugin],
   solidity: {
-    profiles: {
-      default: {
-        version: "0.8.28",
-      },
-      production: {
-        version: "0.8.28",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-        },
+    version: "0.8.28", 
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
       },
     },
   },
@@ -33,6 +31,12 @@ export default defineConfig({
       chainType: "l1",
       url: configVariable("SEPOLIA_RPC_URL"),
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+    },
+    bsctestnet: {
+      type: "http",
+      chainType: "l1",
+      url: BSCTESTNET_RPC_URL,
+      accounts: [BSCTESTNET_PRIVATE_KEY],
     },
   },
 });
