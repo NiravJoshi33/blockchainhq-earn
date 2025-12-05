@@ -32,6 +32,8 @@ import type {
 import { useUser } from "@/contexts/user-context";
 import { createOpportunity } from "@/lib/supabase/services/opportunities";
 import type { Database } from "@/lib/supabase/database.types";
+import { usePrivy } from "@privy-io/react-auth";
+import { toast } from "sonner";
 
 type OpportunityInsert =
   Database["public"]["Tables"]["opportunities"]["Insert"];
@@ -71,7 +73,8 @@ export function CreateOpportunityForm({
   const [skills, setSkills] = useState<string[]>([]);
   const [currentSkill, setCurrentSkill] = useState("");
 
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
+  const { authenticated } = usePrivy();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddTag = () => {
@@ -99,8 +102,19 @@ export function CreateOpportunityForm({
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    // Better check using Privy auth + user loading state
+    if (!authenticated) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    if (userLoading) {
+      toast.info("Setting up your account, please wait...");
+      return;
+    }
+
     if (!user?.id) {
-      alert("Please connect your wallet first");
+      toast.error("User profile not found. Please refresh and try again.");
       return;
     }
 
@@ -116,7 +130,7 @@ export function CreateOpportunityForm({
           sponsor_id: user.id,
           amount: parseFloat(formData.amount),
           currency: formData.currency,
-          deadline: new Date(formData.deadline).toISOString(), // Database expects ISO string
+          deadline: new Date(formData.deadline).toISOString(),
           difficulty_level: formData.difficultyLevel,
           tags,
           required_skills: skills,
@@ -126,7 +140,6 @@ export function CreateOpportunityForm({
           submission_guidelines: formData.submissionGuidelines || null,
           about_organization: formData.aboutOrganization || null,
 
-          // Type-specific fields
           ...(opportunityType === "bounty" && { category: formData.category }),
           ...(opportunityType === "job" && {
             job_type: formData.jobType,
@@ -136,11 +149,15 @@ export function CreateOpportunityForm({
         };
 
       await createOpportunity(opportunityData);
-      alert("Opportunity created successfully!");
+      toast.success("Opportunity created successfully! 🎉", {
+        description: "Your opportunity is now live and accepting applications.",
+      });
       onSuccess?.();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error creating opportunity:", error);
-      alert("Failed to create opportunity. Please try again.");
+      toast.error("Failed to create opportunity", {
+        description: error?.message || "Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -148,6 +165,11 @@ export function CreateOpportunityForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {userLoading && (
+        <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm">
+          Setting up your account...
+        </div>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Create New Opportunity</CardTitle>
@@ -576,8 +598,16 @@ export function CreateOpportunityForm({
             Cancel
           </Button>
         )}
-        <Button type="submit" variant="default" disabled={isSubmitting}>
-          {isSubmitting ? "Creating..." : "Create Opportunity"}
+        <Button
+          type="submit"
+          variant="default"
+          disabled={isSubmitting || userLoading || !authenticated}
+        >
+          {isSubmitting
+            ? "Creating..."
+            : userLoading
+            ? "Loading..."
+            : "Create Opportunity"}
         </Button>
       </div>
     </form>

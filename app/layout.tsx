@@ -6,6 +6,7 @@ import { ThemeProvider } from "next-themes";
 import PrivyProviderWrapper from "@/components/providers/privy-provider";
 import { RoleProvider } from "@/contexts/role-context";
 import { UserProvider } from "@/contexts/user-context";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +39,7 @@ export default function RootLayout({
               <RoleProvider>
                 <Navbar />
                 {children}
+                <Toaster />
               </RoleProvider>
             </UserProvider>
           </PrivyProviderWrapper>
