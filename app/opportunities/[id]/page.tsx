@@ -27,6 +27,7 @@ import { SubmissionsListCard } from "@/components/opportunities/submissions-list
 import { SubmitWorkModal } from "@/components/opportunities/submit-work-modal";
 import { SelectWinnersModal } from "@/components/opportunities/select-winners-modal";
 import { WinnersCard } from "@/components/opportunities/winners-card";
+import { updateOpportunity } from "@/lib/supabase/services/opportunities";
 
 type Opportunity = Database["public"]["Tables"]["opportunities"]["Row"];
 
@@ -90,6 +91,18 @@ export default function OpportunityDetailPage() {
     hash: cancelHash,
   });
 
+  useEffect(() => {
+    if (isCancelConfirmed && cancelHash) {
+      toast.success("Opportunity cancelled and funds withdrawn! 🎉", {
+        description: `Your staked amount has been refunded.`,
+      });
+      setIsSubmitting(false);
+      if (opportunity) {
+        setOpportunity({ ...opportunity, status: "cancelled" });
+      }
+    }
+  }, [isCancelConfirmed, cancelHash, opportunity]);
+
   const isCreator = user?.id === opportunity?.sponsor_id;
   const contractBountyId = (opportunity as any)?.contract_bounty_id;
 
@@ -112,6 +125,21 @@ export default function OpportunityDetailPage() {
       enabled: !!contractBountyId,
     },
   });
+
+  const { data: winners } = useReadContract({
+    address: blockchainBountyAddress as `0x${string}`,
+    abi: blockchainBountyAbi,
+    functionName: "getWinners",
+    args: contractBountyId ? [BigInt(contractBountyId)] : undefined,
+    query: {
+      enabled: !!contractBountyId,
+    },
+  });
+
+  const hasWinners = useMemo(() => {
+    if (!winners || !Array.isArray(winners)) return false;
+    return winners.length > 0;
+  }, [winners]);
 
   const publicClient = usePublicClient();
 
@@ -594,6 +622,103 @@ export default function OpportunityDetailPage() {
     }
   };
 
+  const handleCancelOpportunity = async () => {
+    if (!authenticated) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    if (!isCreator) {
+      toast.error("Only the creator can cancel this opportunity");
+      return;
+    }
+
+    if (contractBountyId) {
+      if (!isDeadlinePassed) {
+        toast.error("Cannot cancel on-chain bounty before deadline");
+        return;
+      }
+
+      if (hasWinners) {
+        toast.error("Cannot cancel: winners have already been selected");
+        return;
+      }
+
+      if (isBountyClosed) {
+        toast.error("This bounty is already closed");
+        return;
+      }
+
+      if (!confirm("Are you sure you want to cancel this opportunity? This will withdraw your funds and cannot be undone.")) {
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      try {
+        const isOnCorrectNetwork = await ensureCorrectNetwork();
+        if (!isOnCorrectNetwork) {
+          toast.error("Please switch to BNB Testnet to continue");
+          setIsSubmitting(false);
+          return;
+        }
+
+        let totalSubmissions = BigInt(0);
+        if (bountyData) {
+          if (Array.isArray(bountyData)) {
+            totalSubmissions = bountyData[8] || BigInt(0);
+          } else if (typeof bountyData === 'object' && 'totalSubmissions' in bountyData) {
+            totalSubmissions = BigInt(bountyData.totalSubmissions as string | number | bigint);
+          }
+        }
+
+        if (totalSubmissions === BigInt(0)) {
+          toast.loading("Cancelling opportunity and withdrawing funds...", { id: "cancel" });
+          writeRefund({
+            address: blockchainBountyAddress as `0x${string}`,
+            abi: blockchainBountyAbi,
+            functionName: "refundBounty",
+            args: [BigInt(contractBountyId)],
+            chainId: 97,
+          });
+        } else {
+          toast.loading("Cancelling opportunity and withdrawing funds...", { id: "cancel" });
+          writeCancel({
+            address: blockchainBountyAddress as `0x${string}`,
+            abi: blockchainBountyAbi,
+            functionName: "cancelBounty",
+            args: [BigInt(contractBountyId), "Sponsor cancelled - no suitable submissions"],
+            chainId: 97,
+          });
+        }
+      } catch (error: any) {
+        toast.error("Failed to cancel opportunity", {
+          description: error?.message || "Please try again",
+          id: "cancel",
+        });
+        setIsSubmitting(false);
+      }
+    } else {
+      if (!confirm("Are you sure you want to cancel this opportunity? This action cannot be undone.")) {
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      try {
+        await updateOpportunity(opportunity!.id, { status: "cancelled" });
+        toast.success("Opportunity cancelled successfully");
+        setOpportunity({ ...opportunity!, status: "cancelled" });
+      } catch (error: any) {
+        toast.error("Failed to cancel opportunity", {
+          description: error?.message || "Please try again",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto py-16 text-center">
@@ -644,7 +769,10 @@ export default function OpportunityDetailPage() {
               isSubmitting={isSubmitting}
               isRefundPending={isRefundPending}
               isCancelPending={isCancelPending}
+              hasWinners={hasWinners}
+              opportunityStatus={opportunity?.status}
               onWithdraw={handleWithdraw}
+              onCancel={handleCancelOpportunity}
               onSubmitClick={() => setShowSubmitModal(true)}
             />
           </div>

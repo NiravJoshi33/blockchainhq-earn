@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Wallet } from "lucide-react";
+import { Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface OpportunityActionButtonsProps {
@@ -13,7 +13,10 @@ interface OpportunityActionButtonsProps {
   isSubmitting: boolean;
   isRefundPending: boolean;
   isCancelPending: boolean;
+  hasWinners?: boolean;
+  opportunityStatus?: string | null;
   onWithdraw: () => void;
+  onCancel: () => void;
   onSubmitClick: () => void;
 }
 
@@ -27,12 +30,19 @@ export function OpportunityActionButtons({
   isSubmitting,
   isRefundPending,
   isCancelPending,
+  hasWinners,
+  opportunityStatus,
   onWithdraw,
+  onCancel,
   onSubmitClick,
 }: OpportunityActionButtonsProps) {
+  const isCancelled = opportunityStatus === "cancelled";
+  const canCancel = isCreator && !isBountyClosed && !hasWinners && !isCancelled && 
+    (contractBountyId ? isDeadlinePassed : true);
+
   return (
     <div className="flex items-center gap-3 shrink-0" style={{ position: 'relative', zIndex: 10 }}>
-      {role === "hunter" && !isDeadlinePassed && (
+      {role === "hunter" && !isDeadlinePassed && opportunityStatus !== "cancelled" && (
         <Button 
           size="lg" 
           type="button"
@@ -75,9 +85,27 @@ export function OpportunityActionButtons({
             : "Withdraw Funds"}
         </Button>
       )}
+      {canCancel && (
+        <Button 
+          size="lg" 
+          variant="destructive"
+          onClick={onCancel}
+          disabled={isSubmitting || isRefundPending || isCancelPending}
+        >
+          <X className="h-4 w-4 mr-2" />
+          {isSubmitting || isRefundPending || isCancelPending 
+            ? "Processing..." 
+            : contractBountyId ? "Cancel & Withdraw" : "Cancel Opportunity"}
+        </Button>
+      )}
       {isCreator && isDeadlinePassed && contractBountyId && isBountyClosed && (
         <Badge variant="secondary" className="px-4 py-2">
           Funds Withdrawn
+        </Badge>
+      )}
+      {isCancelled && (
+        <Badge variant="destructive" className="px-4 py-2">
+          Cancelled
         </Badge>
       )}
     </div>
