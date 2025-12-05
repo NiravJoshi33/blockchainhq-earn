@@ -13,14 +13,14 @@ export async function getUserByPrivyId(privyId: string) {
 }
 
 export async function createUser(userData: {
-  privy_id: string;
+  privy_id?: string;
   email?: string;
   wallet_address?: string;
   role?: "hunter" | "sponsor";
 }) {
   // Generate random username and avatar if not provided
   const randomUsername = generateRandomUsername();
-  const avatarUrl = generateAvatarUrl(userData.email || randomUsername);
+  const avatarUrl = generateAvatarUrl(userData.email || userData.wallet_address || randomUsername);
   
   // Create a default name from the username
   const defaultName = randomUsername
@@ -28,10 +28,15 @@ export async function createUser(userData: {
     .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 
+  // If no privy_id but has wallet_address, create a placeholder privy_id
+  // This allows wallet-only users to be created
+  const privyId = userData.privy_id || `wallet:${userData.wallet_address?.toLowerCase() || randomUsername}`;
+
   const { data, error } = await supabase
     .from("users")
     .insert({
       ...userData,
+      privy_id: privyId,
       name: defaultName,
       avatar_url: avatarUrl,
     })

@@ -33,7 +33,7 @@ import {
 import type { Database } from "@/lib/supabase/database.types";
 import { useRole } from "@/contexts/role-context";
 import { useUser } from "@/contexts/user-context";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -44,7 +44,8 @@ import {
 } from "@/components/providers/contract-abi";
 import { useNetworkSwitch } from "@/lib/contract/use-network-switch";
 import { ApplicantCount } from "@/components/opportunities/applicant-count";
-import { getUserByWalletAddress } from "@/lib/supabase/services/users";
+import { getUserByWalletAddress, createUser } from "@/lib/supabase/services/users";
+import { supabase } from "@/lib/supabase/client";
 
 type Opportunity = Database["public"]["Tables"]["opportunities"]["Row"];
 
@@ -52,7 +53,8 @@ export default function OpportunityDetailPage() {
   const params = useParams();
   const { role } = useRole();
   const { user } = useUser();
-  const { authenticated } = usePrivy();
+  const { authenticated, user: privyUser } = usePrivy();
+  const { wallets } = useWallets();
   const { ensureCorrectNetwork } = useNetworkSwitch();
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
   const [loading, setLoading] = useState(true);
@@ -245,23 +247,72 @@ export default function OpportunityDetailPage() {
 
   // Handle successful submission
   useEffect(() => {
-    if (isSubmitConfirmed && submitHash) {
-      toast.success("Submission successful! 🎉", {
-        description: `Your work has been submitted on-chain.`,
-      });
-      setShowSubmitModal(false);
-      setSubmissionData({
-        submissionLink: "",
-        tweetLink: "",
-        githubLink: "",
-        twitterLink: "",
-        videoLink: "",
-        indieFunLink: "",
-        projectLink: "",
-      });
-      setIsSubmitting(false);
+    async function handleSubmissionSuccess() {
+      if (isSubmitConfirmed && submitHash) {
+        // Get wallet address from the connected wallet
+        const walletAddress = wallets[0]?.address;
+        
+        if (walletAddress) {
+          try {
+            // Check if user exists by wallet address
+            let dbUser = await getUserByWalletAddress(walletAddress);
+            
+            // If user doesn't exist, create them
+            if (!dbUser) {
+              dbUser = await createUser({
+                privy_id: privyUser?.id,
+                email: privyUser?.email?.address,
+                wallet_address: walletAddress,
+                role: "hunter",
+              });
+              console.log("User created in database:", dbUser);
+            } else if (dbUser && !dbUser.wallet_address) {
+              // Update existing user with wallet address if missing
+              const { updateUserProfile } = await import("@/lib/supabase/services/users");
+              // Note: updateUserProfile doesn't support wallet_address, so we'll update directly
+              const { error: updateError } = await supabase
+                .from("users")
+                .update({ wallet_address: walletAddress.toLowerCase() })
+                .eq("id", dbUser.id);
+              
+              if (!updateError) {
+                console.log("Updated user with wallet address");
+              }
+            }
+          } catch (error) {
+            console.error("Error saving user to database:", error);
+            // Don't block the success message if user creation fails
+          }
+        }
+        
+        toast.success("Submission successful! 🎉", {
+          description: `Your work has been submitted on-chain.`,
+        });
+        setShowSubmitModal(false);
+        setSubmissionData({
+          submissionLink: "",
+          tweetLink: "",
+          githubLink: "",
+          twitterLink: "",
+          videoLink: "",
+          indieFunLink: "",
+          projectLink: "",
+        });
+        setIsSubmitting(false);
+        
+        // Refresh submissions to show the new one
+        if (contractBountyId && submissionCount !== undefined) {
+          // Trigger a refetch by updating a dependency
+          const count = typeof submissionCount === 'bigint' 
+            ? Number(submissionCount) 
+            : Number(submissionCount);
+          // The useEffect will refetch when submissionCount changes
+        }
+      }
     }
-  }, [isSubmitConfirmed, submitHash]);
+    
+    handleSubmissionSuccess();
+  }, [isSubmitConfirmed, submitHash, wallets, privyUser, contractBountyId, submissionCount]);
 
   // Handle submission errors
   useEffect(() => {
@@ -770,11 +821,24 @@ export default function OpportunityDetailPage() {
                             <span className="font-medium">Submitted by:</span>
                             {submissionUsers[submission.submitter.toLowerCase()] ? (
                               <>
-                                <span className="font-semibold text-foreground">
+                                {submissionUsers[submission.submitter.toLowerCase()].avatar_url && (
+                                  <img
+                                    src={submissionUsers[submission.submitter.toLowerCase()].avatar_url}
+                                    alt="Avatar"
+                                    className="w-6 h-6 rounded-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = "none";
+                                    }}
+                                  />
+                                )}
+                                <Link
+                                  href={`/profile/${submissionUsers[submission.submitter.toLowerCase()].id}`}
+                                  className="font-semibold text-foreground hover:text-primary hover:underline"
+                                >
                                   {submissionUsers[submission.submitter.toLowerCase()].name || 
                                    (submissionUsers[submission.submitter.toLowerCase()].profile_data as any)?.username ||
                                    "Unknown User"}
-                                </span>
+                                </Link>
                                 <span className="text-xs text-muted-foreground">•</span>
                                 <a
                                   href={`https://testnet.bscscan.com/address/${submission.submitter}`}
