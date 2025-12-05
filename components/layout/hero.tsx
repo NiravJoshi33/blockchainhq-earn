@@ -33,7 +33,7 @@ const Hero = () => {
       </div>
 
       {/* right side */}
-      <div className="flex flex-col items-center justify-center max-w-xl gap-8">
+      <div className="flex flex-col items-center justify-center max-w-xl gap-8 hidden md:flex">
         <div className="flex flex-row items-center justify-start gap-4">
           <Image
             src="/drone-race.svg"
