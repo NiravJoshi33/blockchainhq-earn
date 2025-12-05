@@ -6,19 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
 
+type SubmissionData = {
+  submissionLink: string;
+  tweetLink: string;
+  githubLink: string;
+  twitterLink: string;
+  videoLink: string;
+  indieFunLink: string;
+  projectLink: string;
+};
+
 interface SubmitWorkModalProps {
   open: boolean;
   onClose: () => void;
-  submissionData: {
-    submissionLink: string;
-    tweetLink: string;
-    githubLink: string;
-    twitterLink: string;
-    videoLink: string;
-    indieFunLink: string;
-    projectLink: string;
-  };
-  onSubmissionDataChange: (data: typeof submissionData) => void;
+  submissionData: SubmissionData;
+  onSubmissionDataChange: (data: SubmissionData) => void;
   onSubmit: (e?: React.FormEvent) => void;
   isSubmitting: boolean;
   isSubmitPending: boolean;

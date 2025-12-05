@@ -56,7 +56,7 @@ export default function EditOpportunityPage() {
           return;
         }
 
-        if (data.created_by !== user?.id) {
+        if (data.sponsor_id !== user?.id) {
           toast.error("You can only edit your own opportunities");
           router.push(`/opportunities/${id}`);
           return;
