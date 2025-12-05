@@ -3,10 +3,44 @@ import type { TelegramNotificationPayload } from "./types";
 /**
  * Telegram Bot API Service
  * Sends notifications to candidates about matching opportunities
+ *
+ * IMPORTANT: Telegram ID Format
+ * ===========================
+ * Users can provide their telegram_id in any of these formats:
+ * 1. Username: "username" (without @)
+ * 2. Username: "@username" (with @)
+ * 3. Numeric chat ID: "123456789"
+ *
+ * All formats are automatically converted to the correct format for the Telegram API.
+ *
+ * How users can find their info:
+ * - Username: Found in Telegram settings (e.g., @username)
+ * - Chat ID: Use bots like @userinfobot to get numeric ID
  */
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
+
+/**
+ * Format telegram ID/username to proper chat_id format
+ * Telegram API accepts:
+ * - Numeric chat ID: "123456789"
+ * - Username with @: "@username"
+ */
+function formatTelegramChatId(telegramId: string): string {
+  // If it's already a number (numeric chat_id), return as-is
+  if (/^\d+$/.test(telegramId)) {
+    return telegramId;
+  }
+
+  // If it already starts with @, return as-is
+  if (telegramId.startsWith("@")) {
+    return telegramId;
+  }
+
+  // Otherwise, add @ prefix for username
+  return `@${telegramId}`;
+}
 
 /**
  * Send a message via Telegram Bot API
@@ -22,13 +56,16 @@ async function sendTelegramMessage(
       return false;
     }
 
+    // Format the chat ID properly
+    const formattedChatId = formatTelegramChatId(chatId);
+
     const response = await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        chat_id: chatId,
+        chat_id: formattedChatId,
         text: message,
         parse_mode: parseMode,
         disable_web_page_preview: false,
@@ -38,7 +75,21 @@ async function sendTelegramMessage(
     const data = await response.json();
 
     if (!data.ok) {
-      console.error("Telegram API error:", data);
+      console.error("Telegram API error:", {
+        chatId: formattedChatId,
+        error: data.description,
+        errorCode: data.error_code,
+      });
+
+      // Provide helpful error messages
+      if (data.error_code === 400) {
+        console.error(
+          `❌ Invalid chat_id format. Received: "${formattedChatId}". ` +
+            `User should provide either their Telegram username (e.g., "username" or "@username") ` +
+            `or numeric chat ID (e.g., "123456789"). They must also have started a chat with the bot.`
+        );
+      }
+
       return false;
     }
 
@@ -186,7 +237,15 @@ export async function sendSimpleTelegramMessage(
  */
 export async function verifyTelegramBot(): Promise<{
   success: boolean;
-  botInfo?: any;
+  botInfo?: {
+    id: number;
+    is_bot: boolean;
+    first_name: string;
+    username: string;
+    can_join_groups?: boolean;
+    can_read_all_group_messages?: boolean;
+    supports_inline_queries?: boolean;
+  };
   error?: string;
 }> {
   try {

@@ -49,13 +49,15 @@ TELEGRAM_BOT_TOKEN=your-telegram-bot-token-here
 NEXT_PUBLIC_APP_URL=http://localhost:3000  # Or your production URL
 ```
 
-### 2. Create a Telegram Bot
+### 2. Create a Telegram Bot & Set Up Webhooks
 
 1. Open Telegram and search for [@BotFather](https://t.me/botfather)
 2. Send `/newbot` and follow the instructions
 3. Copy the bot token and add it to your `.env.local`
 4. Send `/setdescription` to add a description for your bot
-5. Users can start your bot to receive notifications
+5. Deploy your app and set webhook (see below)
+
+**📖 For complete Telegram setup including webhooks, chat ID management, and troubleshooting, see [TELEGRAM-SETUP.md](./TELEGRAM-SETUP.md)**
 
 ### 3. Get OpenAI API Key
 
@@ -75,6 +77,40 @@ ADD COLUMN IF NOT EXISTS telegram_id TEXT;
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_users_telegram_id
 ON users(telegram_id);
+```
+
+### 5. How Users Should Add Their Telegram Info
+
+Users can provide their Telegram information in **any of these formats**:
+
+**Option 1: Telegram Username (Recommended)**
+
+```
+telegram_id: "username"      // Without @ symbol
+telegram_id: "@username"     // With @ symbol (both work!)
+```
+
+To find: Open Telegram → Settings → Username (e.g., @johndoe)
+
+**Option 2: Numeric Chat ID**
+
+```
+telegram_id: "123456789"     // Pure numeric ID
+```
+
+To find:
+
+1. Start a chat with [@userinfobot](https://t.me/userinfobot)
+2. It will reply with your numeric ID
+
+**Important:** Users MUST start a chat with your bot before they can receive messages!
+
+**Example SQL to update:**
+
+```sql
+UPDATE users
+SET telegram_id = 'NJonBlockchain'  -- Just the username, no @ needed
+WHERE email = 'user@example.com';
 ```
 
 ## Usage

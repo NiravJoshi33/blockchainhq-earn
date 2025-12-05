@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { mockOpportunities } from "@/lib/mock-data/opportunities";
 import Link from "next/link";
+import { TelegramConnect } from "@/components/profile/telegram-connect";
 
 export function CandidateDashboard() {
   // Mock user data - in real app, this would come from auth/API
@@ -205,6 +206,9 @@ export function CandidateDashboard() {
           <Button variant="outline">Complete Profile</Button>
         </CardContent>
       </Card>
+
+      {/* Telegram Connect */}
+      <TelegramConnect />
 
       {/* Main Content with Tabs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

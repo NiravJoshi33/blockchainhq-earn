@@ -8,6 +8,14 @@ export interface CandidateProfile {
   email: string | null;
   skills: string[] | null;
   bio: string | null;
+  /**
+   * Telegram identifier for sending notifications
+   * Accepts:
+   * - Username: "username" or "@username"
+   * - Numeric chat ID: "123456789"
+   *
+   * Note: Username format is automatically converted to @username internally
+   */
   telegram_id: string | null;
   portfolio_url?: string | null;
   github_url?: string | null;
@@ -44,6 +52,10 @@ export interface OpportunityData {
 }
 
 export interface TelegramNotificationPayload {
+  /**
+   * Telegram identifier (username or numeric chat ID)
+   * Formats accepted: "username", "@username", or "123456789"
+   */
   telegramId: string;
   opportunity: {
     id: string;
