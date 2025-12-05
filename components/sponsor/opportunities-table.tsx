@@ -20,6 +20,9 @@ import {
 import type { Opportunity } from "@/lib/types/opportunities";
 import { MoreHorizontal, Eye, Edit, Pause, Play, Trash2 } from "lucide-react";
 import { ApplicantCount } from "@/components/opportunities/applicant-count";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { updateOpportunity, deleteOpportunity } from "@/lib/supabase/services/opportunities";
 
 interface OpportunitiesTableProps {
   opportunities: Opportunity[];
@@ -27,6 +30,7 @@ interface OpportunitiesTableProps {
 
 export function OpportunitiesTable({ opportunities }: OpportunitiesTableProps) {
   const data = opportunities;
+  const router = useRouter();
 
   const getStatusVariant = (
     status: string
@@ -83,9 +87,55 @@ export function OpportunitiesTable({ opportunities }: OpportunitiesTableProps) {
     }
   };
 
-  const handleAction = (action: string, opportunityId: string) => {
-    console.log(`Action: ${action} on opportunity ${opportunityId}`);
-    // TODO: Implement actual actions
+  const handleAction = async (action: string, opportunity: Opportunity) => {
+    try {
+      switch (action) {
+        case "view":
+          router.push(`/opportunities/${opportunity.id}`);
+          break;
+
+        case "edit":
+          // For on-chain bounties, editing is not applicable
+          if ((opportunity as any).contract_bounty_id) {
+            toast.info("On-chain bounties cannot be edited. You can only view or delete them.");
+            return;
+          }
+          // For non-on-chain opportunities, you could navigate to an edit page
+          toast.info("Edit functionality coming soon");
+          break;
+
+        case "pause":
+          await updateOpportunity(opportunity.id, { status: "paused" });
+          toast.success("Opportunity paused successfully");
+          // Refresh the page to show updated status
+          window.location.reload();
+          break;
+
+        case "activate":
+          await updateOpportunity(opportunity.id, { status: "active" });
+          toast.success("Opportunity activated successfully");
+          // Refresh the page to show updated status
+          window.location.reload();
+          break;
+
+        case "delete":
+          if (confirm(`Are you sure you want to delete "${opportunity.title}"? This action cannot be undone.`)) {
+            await deleteOpportunity(opportunity.id);
+            toast.success("Opportunity deleted successfully");
+            // Refresh the page to show updated list
+            window.location.reload();
+          }
+          break;
+
+        default:
+          console.warn(`Unknown action: ${action}`);
+      }
+    } catch (error: any) {
+      console.error(`Error performing ${action} action:`, error);
+      toast.error(`Failed to ${action} opportunity`, {
+        description: error?.message || "Please try again",
+      });
+    }
   };
 
   if (data.length === 0) {
@@ -162,42 +212,46 @@ export function OpportunitiesTable({ opportunities }: OpportunitiesTableProps) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
-                      onClick={() => handleAction("view", opportunity.id)}
+                      onClick={() => handleAction("view", opportunity)}
                     >
                       <Eye className="mr-2 h-4 w-4" />
                       View Details
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleAction("edit", opportunity.id)}
-                    >
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        handleAction(
-                          opportunity.status === "active"
-                            ? "pause"
-                            : "activate",
-                          opportunity.id
-                        )
-                      }
-                    >
-                      {opportunity.status === "active" ? (
-                        <>
-                          <Pause className="mr-2 h-4 w-4" />
-                          Pause
-                        </>
-                      ) : (
-                        <>
-                          <Play className="mr-2 h-4 w-4" />
-                          Activate
-                        </>
-                      )}
-                    </DropdownMenuItem>
+                    {!(opportunity as any).contract_bounty_id && (
+                      <DropdownMenuItem
+                        onClick={() => handleAction("edit", opportunity)}
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                    )}
+                    {opportunity.status !== "completed" && opportunity.status !== "cancelled" && (
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handleAction(
+                            opportunity.status === "active"
+                              ? "pause"
+                              : "activate",
+                            opportunity
+                          )
+                        }
+                      >
+                        {opportunity.status === "active" ? (
+                          <>
+                            <Pause className="mr-2 h-4 w-4" />
+                            Pause
+                          </>
+                        ) : (
+                          <>
+                            <Play className="mr-2 h-4 w-4" />
+                            Activate
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() => handleAction("delete", opportunity.id)}
+                      onClick={() => handleAction("delete", opportunity)}
                       className="text-red-600"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />

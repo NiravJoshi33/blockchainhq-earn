@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/contexts/user-context";
 import { updateUserProfile } from "@/lib/supabase/services/users";
+import { uploadProfileImage } from "@/lib/supabase/services/storage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -279,9 +280,17 @@ export default function ProfileEditPage() {
       // Upload profile image if changed
       let avatarUrl = user.avatar_url;
       if (profileImage) {
-        // In a real app, you'd upload to Supabase Storage here
-        // For now, we'll use a placeholder
-        toast.info("Image upload will be implemented with Supabase Storage");
+        try {
+          toast.loading("Uploading profile image...", { id: "upload-image" });
+          avatarUrl = await uploadProfileImage(profileImage, user.id);
+          toast.success("Image uploaded successfully", { id: "upload-image" });
+        } catch (error: any) {
+          toast.error("Failed to upload image", {
+            description: error.message || "Please try again",
+            id: "upload-image",
+          });
+          // Continue with existing avatar URL if upload fails
+        }
       }
 
       // Prepare additional profile data to store in JSON field

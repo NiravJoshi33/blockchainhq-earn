@@ -26,6 +26,7 @@ import { TransactionDetailsCard } from "@/components/opportunities/transaction-d
 import { SubmissionsListCard } from "@/components/opportunities/submissions-list-card";
 import { SubmitWorkModal } from "@/components/opportunities/submit-work-modal";
 import { SelectWinnersModal } from "@/components/opportunities/select-winners-modal";
+import { WinnersCard } from "@/components/opportunities/winners-card";
 
 type Opportunity = Database["public"]["Tables"]["opportunities"]["Row"];
 
@@ -785,6 +786,11 @@ export default function OpportunityDetailPage() {
             </CardContent>
           </Card>
         )}
+
+        <WinnersCard
+          contractBountyId={(opportunity as any).contract_bounty_id}
+          opportunity={opportunity}
+        />
 
         <SubmissionsListCard
           submissions={submissions}
