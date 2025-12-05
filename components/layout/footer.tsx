@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Github, Twitter, Linkedin } from "lucide-react";
+import { Github, Twitter } from "lucide-react";
+import { siteData } from "@/lib/data";
 
 const Footer = () => {
   return (
@@ -12,7 +13,7 @@ const Footer = () => {
           <div className="space-y-4 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2">
               <Image
-                src="/bhq-logo.png"
+                src={siteData.logo}
                 alt="BlockchainHQ"
                 width={140}
                 height={140}
@@ -97,13 +98,13 @@ const Footer = () => {
         {/* Bottom Bar */}
         <div className="border-t border-gray-700 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-gray-400">
-            Copyright 1999-{new Date().getFullYear()} BlockchainHQ Technologies
+            Copyright {new Date().getFullYear()} {siteData.name}
           </p>
 
           {/* Social Icons */}
           <div className="flex items-center gap-4">
             <Link
-              href="https://twitter.com/blockchainhq"
+              href={siteData.x}
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-400 hover:text-white transition-colors"
@@ -112,22 +113,13 @@ const Footer = () => {
               <Twitter className="w-5 h-5" />
             </Link>
             <Link
-              href="https://github.com/blockchainhq"
+              href={siteData.github}
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-400 hover:text-white transition-colors"
               aria-label="GitHub"
             >
               <Github className="w-5 h-5" />
-            </Link>
-            <Link
-              href="https://linkedin.com/company/blockchainhq"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-gray-400 hover:text-white transition-colors"
-              aria-label="LinkedIn"
-            >
-              <Linkedin className="w-5 h-5" />
             </Link>
           </div>
         </div>

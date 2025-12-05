@@ -17,8 +17,8 @@ const Navbar = () => {
             <Image
               src="/bhq-logo.png"
               alt="BlockchainHQ"
-              width={120}
-              height={120}
+              width={200}
+              height={150}
             />
           </Link>
 

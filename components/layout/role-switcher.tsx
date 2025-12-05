@@ -51,8 +51,7 @@ export default function RoleSwitcher() {
           variant="outline"
           className={`font-medium ${currentRole.bgColor} hover:${currentRole.bgColor} border-2`}
         >
-          <CurrentIcon className={`w-4 h-4 mr-2 ${currentRole.color}`} />
-          <span className={currentRole.color}>{currentRole.label}</span>
+          <CurrentIcon className={`w-4 h-4 ${currentRole.color}`} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">

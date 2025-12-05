@@ -8,6 +8,7 @@ import PrivyProviderWrapper from "@/components/providers/privy-provider";
 import { RoleProvider } from "@/contexts/role-context";
 import { UserProvider } from "@/contexts/user-context";
 import { Toaster } from "@/components/ui/sonner";
+import { siteData } from "@/lib/data";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,8 +21,33 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChainCred - Cross-Chain Bounty Platform",
-  description: "AI-verified bounties with cross-chain credentials on BNB Chain",
+  title: siteData.name,
+  description: siteData.description,
+  creator: "BlockchainHQ",
+  publisher: "BlockchainHQ",
+  applicationName: siteData.name,
+  keywords: ["BlockchainHQ", "Earn", "Web3", "Blockchain", "Opportunities"],
+  authors: [{ name: siteData.name, url: siteData.url }],
+  metadataBase: new URL(siteData.url),
+  alternates: {
+    canonical: siteData.url,
+  },
+  icons: {
+    icon: siteData.logo,
+  },
+  openGraph: {
+    images: [siteData.logo],
+    type: "website",
+    url: siteData.url,
+    title: siteData.name,
+    description: siteData.description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteData.name,
+    description: siteData.description,
+    images: [siteData.logo],
+  },
 };
 
 export default function RootLayout({
