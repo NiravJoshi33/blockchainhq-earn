@@ -17,7 +17,7 @@ export type Bounty = {
 const titleComponent = ({ row }: { row: Row<Bounty> }) => {
   return (
     <div className="flex flex-col gap-1 px-2">
-      <Link href={row.original.url}>
+      <Link href={row.original.url} className="hover:underline">
         <h3 className="text-lg font-bold">{row.original.title}</h3>
         <p className="text-sm text-muted-foreground">
           {row.original.organization}

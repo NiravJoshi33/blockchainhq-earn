@@ -14,7 +14,7 @@ interface WinnersCardProps {
   contractBountyId: string | null;
   opportunity: {
     amount: number;
-    currency: string;
+    currency: string | null;
   };
 }
 
@@ -174,7 +174,7 @@ export function WinnersCard({ contractBountyId, opportunity }: WinnersCardProps)
                     {prizeAmount ? formatEther(BigInt(prizeAmount.toString())) : "0"} BNB
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    ${opportunity.amount.toLocaleString()} {opportunity.currency}
+                    ${opportunity.amount.toLocaleString()} {opportunity.currency || "USD"}
                   </div>
                 </div>
               </div>

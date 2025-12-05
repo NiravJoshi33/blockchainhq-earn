@@ -100,8 +100,8 @@ export function OpportunitiesTable({ opportunities }: OpportunitiesTableProps) {
             toast.info("On-chain bounties cannot be edited. You can only view or delete them.");
             return;
           }
-          // For non-on-chain opportunities, you could navigate to an edit page
-          toast.info("Edit functionality coming soon");
+          // Navigate to edit page for non-on-chain opportunities
+          router.push(`/opportunities/${opportunity.id}/edit`);
           break;
 
         case "pause":

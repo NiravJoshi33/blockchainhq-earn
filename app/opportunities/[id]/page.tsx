@@ -789,7 +789,10 @@ export default function OpportunityDetailPage() {
 
         <WinnersCard
           contractBountyId={(opportunity as any).contract_bounty_id}
-          opportunity={opportunity}
+          opportunity={{
+            amount: opportunity.amount || 0,
+            currency: opportunity.currency || "USD",
+          }}
         />
 
         <SubmissionsListCard
