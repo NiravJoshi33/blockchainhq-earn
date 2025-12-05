@@ -1,11 +1,20 @@
 import Hero from "@/components/layout/hero";
+import HowItWorks from "@/components/layout/how-it-works";
+import Stats from "@/components/layout/stats";
+import OpportunityTypes from "@/components/layout/opportunity-types";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen">
-      <main className="flex min-h-screen w-full max-w-7xl mx-auto flex-col items-center justify-between py-32 px-16 sm:items-start">
+    <div className="flex max-w-7xl mx-auto min-h-screen flex-col space-y-16">
+      {/* Hero - Full viewport height */}
+      <section className="min-h-[calc(100vh-80px)] flex items-center justify-center">
         <Hero />
-      </main>
+      </section>
+
+      {/* Rest of the sections */}
+      <Stats />
+      <OpportunityTypes />
+      <HowItWorks />
     </div>
   );
 }

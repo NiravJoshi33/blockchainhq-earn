@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/layout/navbar";
+import Footer from "@/components/layout/footer";
 import { ThemeProvider } from "next-themes";
 import PrivyProviderWrapper from "@/components/providers/privy-provider";
 import { RoleProvider } from "@/contexts/role-context";
@@ -39,6 +40,7 @@ export default function RootLayout({
               <RoleProvider>
                 <Navbar />
                 {children}
+                <Footer />
                 <Toaster />
               </RoleProvider>
             </UserProvider>
