@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Opportunity } from "@/lib/types/opportunities";
 import { MoreHorizontal, Eye, Edit, Pause, Play, Trash2 } from "lucide-react";
+import { ApplicantCount } from "@/components/opportunities/applicant-count";
 
 interface OpportunitiesTableProps {
   opportunities: Opportunity[];
@@ -138,7 +139,7 @@ export function OpportunitiesTable({ opportunities }: OpportunitiesTableProps) {
               <TableCell>
                 <div className="flex items-center gap-1">
                   <span className="font-medium">
-                    {opportunity.applicants || 0}
+                    <ApplicantCount opportunity={opportunity} />
                   </span>
                   <span className="text-muted-foreground text-xs">
                     applicants

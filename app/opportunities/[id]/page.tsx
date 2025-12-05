@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { getOpportunityById } from "@/lib/supabase/services/opportunities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Calendar,
   DollarSign,
@@ -19,19 +22,212 @@ import {
   MapPin,
   ExternalLink,
   Hash,
+  X,
+  Wallet,
+  Github,
+  Twitter,
+  Youtube,
+  Link as LinkIcon,
+  FileText,
 } from "lucide-react";
 import type { Database } from "@/lib/supabase/database.types";
 import { useRole } from "@/contexts/role-context";
+import { useUser } from "@/contexts/user-context";
+import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { useWriteContract, useWaitForTransactionReceipt, useReadContract, usePublicClient } from "wagmi";
+import {
+  blockchainBountyAddress,
+  blockchainBountyAbi,
+} from "@/components/providers/contract-abi";
+import { useNetworkSwitch } from "@/lib/contract/use-network-switch";
+import { ApplicantCount } from "@/components/opportunities/applicant-count";
+import { getUserByWalletAddress } from "@/lib/supabase/services/users";
 
 type Opportunity = Database["public"]["Tables"]["opportunities"]["Row"];
 
 export default function OpportunityDetailPage() {
   const params = useParams();
   const { role } = useRole();
+  const { user } = useUser();
+  const { authenticated } = usePrivy();
+  const { ensureCorrectNetwork } = useNetworkSwitch();
   const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionData, setSubmissionData] = useState({
+    submissionLink: "",
+    tweetLink: "",
+    githubLink: "",
+    twitterLink: "",
+    videoLink: "",
+    indieFunLink: "",
+    projectLink: "",
+  });
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [submissionUsers, setSubmissionUsers] = useState<Record<string, any>>({});
+
+  // Contract interaction hooks for submission
+  const { 
+    writeContract: writeSubmit, 
+    data: submitHash, 
+    isPending: isSubmitPending,
+    error: submitError 
+  } = useWriteContract();
+  const { 
+    isSuccess: isSubmitConfirmed,
+    error: submitReceiptError 
+  } = useWaitForTransactionReceipt({
+    hash: submitHash,
+  });
+
+  // Contract interaction hooks for withdrawal
+  const { writeContract: writeRefund, data: refundHash, isPending: isRefundPending } = useWriteContract();
+  const { writeContract: writeCancel, data: cancelHash, isPending: isCancelPending } = useWriteContract();
+  const { isSuccess: isRefundConfirmed } = useWaitForTransactionReceipt({
+    hash: refundHash,
+  });
+  const { isSuccess: isCancelConfirmed } = useWaitForTransactionReceipt({
+    hash: cancelHash,
+  });
+
+  // Check if user is the creator
+  const isCreator = user?.id === opportunity?.sponsor_id;
+  const contractBountyId = (opportunity as any)?.contract_bounty_id;
+
+  // Read contract to check if bounty has submissions and if it's closed
+  const { data: bountyData } = useReadContract({
+    address: blockchainBountyAddress as `0x${string}`,
+    abi: blockchainBountyAbi,
+    functionName: "getBounty",
+    args: contractBountyId ? [BigInt(contractBountyId)] : undefined,
+    query: {
+      enabled: !!contractBountyId,
+    },
+  });
+
+  // Get submission count
+  const { data: submissionCount } = useReadContract({
+    address: blockchainBountyAddress as `0x${string}`,
+    abi: blockchainBountyAbi,
+    functionName: "getSubmissionCount",
+    args: contractBountyId ? [BigInt(contractBountyId)] : undefined,
+    query: {
+      enabled: !!contractBountyId,
+    },
+  });
+
+  const publicClient = usePublicClient();
+
+  // Fetch all submissions
+  useEffect(() => {
+    async function fetchSubmissions() {
+      if (!contractBountyId || !submissionCount || !publicClient) return;
+      
+      const count = typeof submissionCount === 'bigint' 
+        ? Number(submissionCount) 
+        : Number(submissionCount);
+      
+      if (count === 0) {
+        setSubmissions([]);
+        return;
+      }
+
+      setLoadingSubmissions(true);
+      try {
+        const submissionPromises = [];
+        for (let i = 0; i < count; i++) {
+          submissionPromises.push(
+            publicClient.readContract({
+              address: blockchainBountyAddress as `0x${string}`,
+              abi: blockchainBountyAbi,
+              functionName: "getSubmission",
+              args: [BigInt(contractBountyId), BigInt(i)],
+            })
+          );
+        }
+        
+        const results = await Promise.all(submissionPromises);
+        const formattedSubmissions = results.map((submission, index) => {
+          if (Array.isArray(submission)) {
+            return {
+              id: index,
+              bountyId: submission[0],
+              submitter: submission[1],
+              submissionLink: submission[2],
+              tweetLink: submission[3],
+              githubLink: submission[4],
+              twitterLink: submission[5],
+              videoLink: submission[6],
+              indieFunLink: submission[7],
+              projectLink: submission[8],
+              submissionTime: submission[9],
+              isWinner: submission[10],
+              rank: submission[11],
+            };
+          }
+          return { 
+            id: index, 
+            bountyId: (submission as any).bountyId,
+            submitter: (submission as any).submitter,
+            submissionLink: (submission as any).submissionLink,
+            tweetLink: (submission as any).tweetLink,
+            githubLink: (submission as any).githubLink,
+            twitterLink: (submission as any).twitterLink,
+            videoLink: (submission as any).videoLink,
+            indieFunLink: (submission as any).indieFunLink,
+            projectLink: (submission as any).projectLink,
+            submissionTime: (submission as any).submissionTime,
+            isWinner: (submission as any).isWinner,
+            rank: (submission as any).rank,
+          };
+        });
+        
+        setSubmissions(formattedSubmissions);
+        
+        // Fetch user information for each submitter
+        const userPromises = formattedSubmissions.map(async (submission) => {
+          try {
+            const user = await getUserByWalletAddress(submission.submitter);
+            return { address: submission.submitter.toLowerCase(), user };
+          } catch (error) {
+            console.error(`Error fetching user for ${submission.submitter}:`, error);
+            return { address: submission.submitter.toLowerCase(), user: null };
+          }
+        });
+        
+        const userResults = await Promise.all(userPromises);
+        const usersMap: Record<string, any> = {};
+        userResults.forEach(({ address, user }) => {
+          usersMap[address] = user;
+        });
+        setSubmissionUsers(usersMap);
+      } catch (error) {
+        console.error("Error fetching submissions:", error);
+      } finally {
+        setLoadingSubmissions(false);
+      }
+    }
+
+    fetchSubmissions();
+  }, [contractBountyId, submissionCount, publicClient]);
+
+  // Check if bounty is closed (funds have been withdrawn)
+  const isBountyClosed = useMemo(() => {
+    if (!bountyData) return false;
+    
+    // getBounty returns: (id, creator, stakeAmount, deadline, description, category, isActive, isClosed, totalSubmissions)
+    if (Array.isArray(bountyData)) {
+      return bountyData[7] === true; // isClosed is at index 7
+    } else if (typeof bountyData === 'object' && 'isClosed' in bountyData) {
+      return bountyData.isClosed === true;
+    }
+    return false;
+  }, [bountyData]);
 
   useEffect(() => {
     async function fetchOpportunity() {
@@ -46,6 +242,222 @@ export default function OpportunityDetailPage() {
     }
     fetchOpportunity();
   }, [params.id]);
+
+  // Handle successful submission
+  useEffect(() => {
+    if (isSubmitConfirmed && submitHash) {
+      toast.success("Submission successful! 🎉", {
+        description: `Your work has been submitted on-chain.`,
+      });
+      setShowSubmitModal(false);
+      setSubmissionData({
+        submissionLink: "",
+        tweetLink: "",
+        githubLink: "",
+        twitterLink: "",
+        videoLink: "",
+        indieFunLink: "",
+        projectLink: "",
+      });
+      setIsSubmitting(false);
+    }
+  }, [isSubmitConfirmed, submitHash]);
+
+  // Handle submission errors
+  useEffect(() => {
+    if (submitError) {
+      console.error("Submit error:", submitError);
+      toast.error("Failed to submit work", {
+        description: submitError.message || "Please try again",
+        id: "submit-work",
+      });
+      setIsSubmitting(false);
+    }
+  }, [submitError]);
+
+  // Handle receipt errors
+  useEffect(() => {
+    if (submitReceiptError) {
+      console.error("Submit receipt error:", submitReceiptError);
+      toast.error("Transaction failed", {
+        description: submitReceiptError.message || "Please try again",
+        id: "submit-work",
+      });
+      setIsSubmitting(false);
+    }
+  }, [submitReceiptError]);
+
+  // Handle successful refund
+  useEffect(() => {
+    if (isRefundConfirmed && refundHash) {
+      toast.success("Funds withdrawn successfully! 🎉", {
+        description: `Your staked amount has been refunded.`,
+      });
+      setIsSubmitting(false);
+    }
+  }, [isRefundConfirmed, refundHash]);
+
+  // Handle successful cancel
+  useEffect(() => {
+    if (isCancelConfirmed && cancelHash) {
+      toast.success("Bounty cancelled and funds withdrawn! 🎉", {
+        description: `Your staked amount has been refunded.`,
+      });
+      setIsSubmitting(false);
+    }
+  }, [isCancelConfirmed, cancelHash]);
+
+  const handleSubmitWork = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    
+    console.log("handleSubmitWork called", {
+      authenticated,
+      contractBountyId,
+      submissionData,
+    });
+
+    if (!authenticated) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    if (!contractBountyId) {
+      toast.error("This opportunity is not on-chain");
+      return;
+    }
+
+    // Validate required fields
+    if (!submissionData.submissionLink || !submissionData.githubLink || 
+        !submissionData.twitterLink || !submissionData.videoLink || 
+        !submissionData.indieFunLink) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const isOnCorrectNetwork = await ensureCorrectNetwork();
+      if (!isOnCorrectNetwork) {
+        toast.error("Please switch to BNB Testnet to continue");
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast.loading("Submitting work...", { id: "submit-work" });
+
+      console.log("Calling writeSubmit with:", {
+        address: blockchainBountyAddress,
+        functionName: "submitWork",
+        args: [
+          BigInt(contractBountyId),
+          submissionData.submissionLink,
+          submissionData.tweetLink || "",
+          submissionData.githubLink,
+          submissionData.twitterLink,
+          submissionData.videoLink,
+          submissionData.indieFunLink,
+          submissionData.projectLink || "",
+        ],
+      });
+
+      writeSubmit({
+        address: blockchainBountyAddress as `0x${string}`,
+        abi: blockchainBountyAbi,
+        functionName: "submitWork",
+        args: [
+          BigInt(contractBountyId),
+          submissionData.submissionLink,
+          submissionData.tweetLink || "",
+          submissionData.githubLink,
+          submissionData.twitterLink,
+          submissionData.videoLink,
+          submissionData.indieFunLink,
+          submissionData.projectLink || "",
+        ],
+        chainId: 97,
+      });
+
+      toast.loading("Waiting for transaction confirmation...", { id: "submit-work" });
+    } catch (error: any) {
+      console.error("Error submitting work:", error);
+      toast.error("Failed to submit work", {
+        description: error?.message || "Please try again",
+        id: "submit-work",
+      });
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!authenticated) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    if (!contractBountyId) {
+      toast.error("This opportunity is not on-chain");
+      return;
+    }
+
+    if (!isCreator) {
+      toast.error("Only the creator can withdraw funds");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const isOnCorrectNetwork = await ensureCorrectNetwork();
+      if (!isOnCorrectNetwork) {
+        toast.error("Please switch to BNB Testnet to continue");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Check if there are submissions
+      // getBounty returns a struct: (id, creator, stakeAmount, deadline, description, category, isActive, isClosed, totalSubmissions)
+      // wagmi returns it as an array or object, so we need to handle both
+      let totalSubmissions = BigInt(0);
+      if (bountyData) {
+        // Handle both array and object formats
+        if (Array.isArray(bountyData)) {
+          totalSubmissions = bountyData[8] || BigInt(0);
+        } else if (typeof bountyData === 'object' && 'totalSubmissions' in bountyData) {
+          totalSubmissions = BigInt(bountyData.totalSubmissions as string | number | bigint);
+        }
+      }
+
+      if (totalSubmissions === BigInt(0)) {
+        // Use refundBounty if no submissions
+        toast.loading("Withdrawing funds...", { id: "withdraw" });
+        writeRefund({
+          address: blockchainBountyAddress as `0x${string}`,
+          abi: blockchainBountyAbi,
+          functionName: "refundBounty",
+          args: [BigInt(contractBountyId)],
+          chainId: 97,
+        });
+      } else {
+        // Use cancelBounty if there are submissions but no winners
+        toast.loading("Cancelling bounty and withdrawing funds...", { id: "withdraw" });
+        writeCancel({
+          address: blockchainBountyAddress as `0x${string}`,
+          abi: blockchainBountyAbi,
+          functionName: "cancelBounty",
+          args: [BigInt(contractBountyId), "Creator withdrawal after deadline"],
+          chainId: 97,
+        });
+      }
+    } catch (error: any) {
+      console.error("Error withdrawing funds:", error);
+      toast.error("Failed to withdraw funds", {
+        description: error?.message || "Please try again",
+        id: "withdraw",
+      });
+      setIsSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -73,6 +485,7 @@ export default function OpportunityDetailPage() {
   const daysLeft = Math.ceil(
     (deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
   );
+  const isDeadlinePassed = deadline.getTime() < now.getTime();
 
   return (
     <div className="min-h-screen bg-background">
@@ -115,11 +528,64 @@ export default function OpportunityDetailPage() {
               </div>
             </div>
 
-            {role === "hunter" && (
-              <Button size="lg" className="shrink-0">
-                Submit Now
-              </Button>
-            )}
+            <div className="flex items-center gap-3 shrink-0" style={{ position: 'relative', zIndex: 10 }}>
+              {role === "hunter" && !isDeadlinePassed && (
+                <Button 
+                  size="lg" 
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("Submit Now button clicked", { 
+                      authenticated, 
+                      contractBountyId,
+                      role,
+                      isDeadlinePassed,
+                      showSubmitModal 
+                    });
+                    
+                    if (!authenticated) {
+                      toast.error("Please connect your wallet first");
+                      return;
+                    }
+                    
+                    if (!contractBountyId) {
+                      toast.error("This opportunity is not available for on-chain submission");
+                      return;
+                    }
+                    
+                    console.log("Opening submit modal");
+                    setShowSubmitModal(true);
+                  }}
+                  style={{ 
+                    pointerEvents: 'auto',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    zIndex: 10
+                  }}
+                >
+                  Submit Now
+                </Button>
+              )}
+              {isCreator && isDeadlinePassed && contractBountyId && !isBountyClosed && (
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  onClick={handleWithdraw}
+                  disabled={isSubmitting || isRefundPending || isCancelPending}
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  {isSubmitting || isRefundPending || isCancelPending 
+                    ? "Processing..." 
+                    : "Withdraw Funds"}
+                </Button>
+              )}
+              {isCreator && isDeadlinePassed && contractBountyId && isBountyClosed && (
+                <Badge variant="secondary" className="px-4 py-2">
+                  Funds Withdrawn
+                </Badge>
+              )}
+            </div>
           </div>
 
           {/* Stats Grid */}
@@ -140,7 +606,7 @@ export default function OpportunityDetailPage() {
               <Users className="h-8 w-8 text-primary shrink-0" />
               <div>
                 <div className="text-2xl font-bold">
-                  {opportunity.applicants_count || 0}
+                  <ApplicantCount opportunity={opportunity} />
                 </div>
                 <p className="text-xs text-muted-foreground">Applicants</p>
               </div>
@@ -261,6 +727,168 @@ export default function OpportunityDetailPage() {
           </Card>
         )}
 
+        {/* Submissions - Only visible to creator/sponsor */}
+        {isCreator && contractBountyId && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Submissions ({submissions.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingSubmissions ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Loading submissions...
+                </div>
+              ) : submissions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No submissions yet
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {submissions.map((submission, index) => (
+                    <Card key={index} className="border">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">
+                              Submission #{submission.id + 1}
+                            </Badge>
+                            {submission.isWinner && (
+                              <Badge variant="default">
+                                Winner - Rank {submission.rank}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {new Date(Number(submission.submissionTime) * 1000).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">Submitted by:</span>
+                            {submissionUsers[submission.submitter.toLowerCase()] ? (
+                              <>
+                                <span className="font-semibold text-foreground">
+                                  {submissionUsers[submission.submitter.toLowerCase()].name || 
+                                   (submissionUsers[submission.submitter.toLowerCase()].profile_data as any)?.username ||
+                                   "Unknown User"}
+                                </span>
+                                <span className="text-xs text-muted-foreground">•</span>
+                                <a
+                                  href={`https://testnet.bscscan.com/address/${submission.submitter}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-mono text-xs text-primary hover:underline flex items-center gap-1"
+                                >
+                                  {submission.submitter.slice(0, 6)}...{submission.submitter.slice(-4)}
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              </>
+                            ) : (
+                              <a
+                                href={`https://testnet.bscscan.com/address/${submission.submitter}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono text-xs text-primary hover:underline flex items-center gap-1"
+                              >
+                                {submission.submitter.slice(0, 6)}...{submission.submitter.slice(-4)}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {submission.submissionLink && (
+                            <a
+                              href={submission.submissionLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-sm text-primary hover:underline"
+                            >
+                              <LinkIcon className="h-4 w-4" />
+                              Submission Link
+                            </a>
+                          )}
+                          {submission.githubLink && (
+                            <a
+                              href={submission.githubLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-sm text-primary hover:underline"
+                            >
+                              <Github className="h-4 w-4" />
+                              GitHub Repository
+                            </a>
+                          )}
+                          {submission.twitterLink && (
+                            <a
+                              href={submission.twitterLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-sm text-primary hover:underline"
+                            >
+                              <Twitter className="h-4 w-4" />
+                              Project Twitter
+                            </a>
+                          )}
+                          {submission.videoLink && (
+                            <a
+                              href={submission.videoLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-sm text-primary hover:underline"
+                            >
+                              <Youtube className="h-4 w-4" />
+                              Video Trailer
+                            </a>
+                          )}
+                          {submission.indieFunLink && (
+                            <a
+                              href={submission.indieFunLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-sm text-primary hover:underline"
+                            >
+                              <LinkIcon className="h-4 w-4" />
+                              Indie.fun Page
+                            </a>
+                          )}
+                          {submission.tweetLink && (
+                            <a
+                              href={submission.tweetLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-sm text-primary hover:underline"
+                            >
+                              <Twitter className="h-4 w-4" />
+                              Tweet Link
+                            </a>
+                          )}
+                          {submission.projectLink && (
+                            <a
+                              href={submission.projectLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-sm text-primary hover:underline"
+                            >
+                              <LinkIcon className="h-4 w-4" />
+                              Live Project
+                            </a>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Transaction Details */}
         {(opportunity as any).transaction_hash && (
           <Card>
@@ -313,6 +941,154 @@ export default function OpportunityDetailPage() {
           </Card>
         )}
       </div>
+
+      {/* Submission Modal */}
+      {showSubmitModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowSubmitModal(false);
+            }
+          }}
+        >
+          <Card 
+            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-background"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Submit Your Work</CardTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSubmitModal(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="submissionLink">
+                  Submission Link <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="submissionLink"
+                  placeholder="https://..."
+                  value={submissionData.submissionLink}
+                  onChange={(e) =>
+                    setSubmissionData({ ...submissionData, submissionLink: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="githubLink">
+                  GitHub Repository <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="githubLink"
+                  placeholder="https://github.com/..."
+                  value={submissionData.githubLink}
+                  onChange={(e) =>
+                    setSubmissionData({ ...submissionData, githubLink: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="twitterLink">
+                  Project Twitter <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="twitterLink"
+                  placeholder="https://twitter.com/... or https://x.com/..."
+                  value={submissionData.twitterLink}
+                  onChange={(e) =>
+                    setSubmissionData({ ...submissionData, twitterLink: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="videoLink">
+                  Video Trailer <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="videoLink"
+                  placeholder="https://youtube.com/... or https://vimeo.com/..."
+                  value={submissionData.videoLink}
+                  onChange={(e) =>
+                    setSubmissionData({ ...submissionData, videoLink: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="indieFunLink">
+                  Indie.fun Page <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="indieFunLink"
+                  placeholder="https://indie.fun/..."
+                  value={submissionData.indieFunLink}
+                  onChange={(e) =>
+                    setSubmissionData({ ...submissionData, indieFunLink: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tweetLink">Tweet Link (Optional)</Label>
+                <Input
+                  id="tweetLink"
+                  placeholder="https://twitter.com/.../status/..."
+                  value={submissionData.tweetLink}
+                  onChange={(e) =>
+                    setSubmissionData({ ...submissionData, tweetLink: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="projectLink">Live Project Link (Optional)</Label>
+                <Input
+                  id="projectLink"
+                  placeholder="https://..."
+                  value={submissionData.projectLink}
+                  onChange={(e) =>
+                    setSubmissionData({ ...submissionData, projectLink: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    console.log("Submit button clicked");
+                    handleSubmitWork(e);
+                  }}
+                  disabled={isSubmitting || isSubmitPending}
+                  className="flex-1"
+                >
+                  {isSubmitting || isSubmitPending ? "Submitting..." : "Submit Work"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    console.log("Cancel button clicked");
+                    setShowSubmitModal(false);
+                  }}
+                  disabled={isSubmitting || isSubmitPending}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

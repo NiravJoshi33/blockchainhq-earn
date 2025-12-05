@@ -87,3 +87,14 @@ export async function updateUserProfile(
   if (error) throw error;
   return data;
 }
+
+export async function getUserByWalletAddress(walletAddress: string) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("wallet_address", walletAddress.toLowerCase())
+    .maybeSingle();
+
+  if (error && error.code !== "PGRST116") throw error;
+  return data;
+}

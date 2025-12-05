@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { useRole } from "@/contexts/role-context";
 import Link from "next/link";
+import { ApplicantCount } from "./applicant-count";
 
 interface OpportunitiesListingTableProps {
   opportunities: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -204,7 +205,7 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
               Applicants
             </div>
             <div className="text-lg font-bold">
-              {opportunity.applicants || 0}
+              <ApplicantCount opportunity={opportunity} />
             </div>
             <div className="text-xs text-muted-foreground">total</div>
           </div>
