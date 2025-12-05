@@ -2,7 +2,13 @@
 
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { Button } from "../ui/button";
-import { WalletIcon, LogOutIcon, CopyIcon, CheckIcon } from "lucide-react";
+import {
+  WalletIcon,
+  LogOutIcon,
+  CopyIcon,
+  CheckIcon,
+  UserIcon,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,10 +18,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
+import { useRole } from "@/contexts/role-context";
 
 export default function WalletButton() {
   const { login, logout, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
+  const { role } = useRole();
   const [copied, setCopied] = useState(false);
 
   const wallet = wallets[0];
@@ -49,8 +57,8 @@ export default function WalletButton() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className="font-medium">
-          <WalletIcon className="w-4 h-4 mr-2" />
-          {address ? formatAddress(address) : "Connected"}
+          <UserIcon className="w-4 h-4 mr-2" />
+          {address ? formatAddress(address) : "Account"}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -69,12 +77,25 @@ export default function WalletButton() {
         )}
 
         <DropdownMenuItem onClick={() => (window.location.href = "/profile")}>
+          <UserIcon className="w-4 h-4 mr-2" />
           View Profile
         </DropdownMenuItem>
 
-        <DropdownMenuItem onClick={() => (window.location.href = "/bounties")}>
-          My Bounties
-        </DropdownMenuItem>
+        {role === "hunter" && (
+          <DropdownMenuItem
+            onClick={() => (window.location.href = "/my-applications")}
+          >
+            My Applications
+          </DropdownMenuItem>
+        )}
+
+        {role === "sponsor" && (
+          <DropdownMenuItem
+            onClick={() => (window.location.href = "/my-bounties")}
+          >
+            My Bounties
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuSeparator />
 

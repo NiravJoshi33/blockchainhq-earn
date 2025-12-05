@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/layout/navbar";
 import { ThemeProvider } from "next-themes";
 import PrivyProviderWrapper from "@/components/providers/privy-provider";
+import { RoleProvider } from "@/contexts/role-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,8 +33,10 @@ export default function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <PrivyProviderWrapper>
-            <Navbar />
-            {children}
+            <RoleProvider>
+              <Navbar />
+              {children}
+            </RoleProvider>
           </PrivyProviderWrapper>
         </ThemeProvider>
       </body>
