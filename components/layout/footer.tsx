@@ -84,10 +84,10 @@ const Footer = () => {
             <ul className="space-y-3">
               <li>
                 <Link
-                  href="/sponsor/dashboard"
+                  href="/dashboard"
                   className="text-gray-300 hover:text-white transition-colors text-sm"
                 >
-                  Sponsor Dashboard
+                  Dashboard
                 </Link>
               </li>
             </ul>
