@@ -12,6 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Calendar,
   DollarSign,
   Users,
@@ -29,6 +36,8 @@ import {
   Youtube,
   Link as LinkIcon,
   FileText,
+  Trophy,
+  CheckCircle2,
 } from "lucide-react";
 import type { Database } from "@/lib/supabase/database.types";
 import { useRole } from "@/contexts/role-context";
@@ -72,6 +81,8 @@ export default function OpportunityDetailPage() {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [submissionUsers, setSubmissionUsers] = useState<Record<string, any>>({});
+  const [showSelectWinnersModal, setShowSelectWinnersModal] = useState(false);
+  const [selectedWinners, setSelectedWinners] = useState<Array<{ submissionId: number; rank: number; percentage: number }>>([]);
 
   // Contract interaction hooks for submission
   const { 
@@ -90,6 +101,20 @@ export default function OpportunityDetailPage() {
   // Contract interaction hooks for withdrawal
   const { writeContract: writeRefund, data: refundHash, isPending: isRefundPending } = useWriteContract();
   const { writeContract: writeCancel, data: cancelHash, isPending: isCancelPending } = useWriteContract();
+  
+  // Contract interaction hooks for winner selection
+  const { 
+    writeContract: writeSelectWinners, 
+    data: selectWinnersHash, 
+    isPending: isSelectWinnersPending,
+    error: selectWinnersError 
+  } = useWriteContract();
+  const { 
+    isSuccess: isSelectWinnersConfirmed,
+    error: selectWinnersReceiptError 
+  } = useWaitForTransactionReceipt({
+    hash: selectWinnersHash,
+  });
   const { isSuccess: isRefundConfirmed } = useWaitForTransactionReceipt({
     hash: refundHash,
   });
@@ -358,6 +383,109 @@ export default function OpportunityDetailPage() {
     }
   }, [isCancelConfirmed, cancelHash]);
 
+  // Handle winner selection errors
+  useEffect(() => {
+    if (selectWinnersError) {
+      console.error("Select winners error:", selectWinnersError);
+      toast.error("Failed to select winners", {
+        description: selectWinnersError.message || "Please try again",
+        id: "select-winners",
+      });
+      setIsSubmitting(false);
+    }
+  }, [selectWinnersError]);
+
+  // Handle winner selection receipt errors
+  useEffect(() => {
+    if (selectWinnersReceiptError) {
+      console.error("Select winners receipt error:", selectWinnersReceiptError);
+      toast.error("Transaction failed", {
+        description: selectWinnersReceiptError.message || "Please try again",
+        id: "select-winners",
+      });
+      setIsSubmitting(false);
+    }
+  }, [selectWinnersReceiptError]);
+
+  // Handle successful winner selection
+  useEffect(() => {
+    if (isSelectWinnersConfirmed && selectWinnersHash) {
+      toast.dismiss("select-winners");
+      toast.success("Winners selected and prizes distributed! 🎉", {
+        description: `Prizes have been transferred to the winners.`,
+      });
+      setShowSelectWinnersModal(false);
+      setSelectedWinners([]);
+      setIsSubmitting(false);
+      // Refresh submissions to show winner status
+      // Force refetch by updating a state that triggers the useEffect
+      if (contractBountyId && submissionCount !== undefined) {
+        // The useEffect will refetch when submissionCount changes
+        // We can also manually trigger a refetch
+        const fetchSubmissions = async () => {
+          if (!publicClient) return;
+          const count = typeof submissionCount === 'bigint' 
+            ? Number(submissionCount) 
+            : Number(submissionCount);
+          if (count === 0) return;
+          
+          try {
+            const submissionPromises = [];
+            for (let i = 0; i < count; i++) {
+              submissionPromises.push(
+                publicClient.readContract({
+                  address: blockchainBountyAddress as `0x${string}`,
+                  abi: blockchainBountyAbi,
+                  functionName: "getSubmission",
+                  args: [BigInt(contractBountyId), BigInt(i)],
+                })
+              );
+            }
+            const results = await Promise.all(submissionPromises);
+            const formattedSubmissions = results.map((submission, index) => {
+              if (Array.isArray(submission)) {
+                return {
+                  id: index,
+                  bountyId: submission[0],
+                  submitter: submission[1],
+                  submissionLink: submission[2],
+                  tweetLink: submission[3],
+                  githubLink: submission[4],
+                  twitterLink: submission[5],
+                  videoLink: submission[6],
+                  indieFunLink: submission[7],
+                  projectLink: submission[8],
+                  submissionTime: submission[9],
+                  isWinner: submission[10],
+                  rank: submission[11],
+                };
+              }
+              return { 
+                id: index, 
+                bountyId: (submission as any).bountyId,
+                submitter: (submission as any).submitter,
+                submissionLink: (submission as any).submissionLink,
+                tweetLink: (submission as any).tweetLink,
+                githubLink: (submission as any).githubLink,
+                twitterLink: (submission as any).twitterLink,
+                videoLink: (submission as any).videoLink,
+                indieFunLink: (submission as any).indieFunLink,
+                projectLink: (submission as any).projectLink,
+                submissionTime: (submission as any).submissionTime,
+                isWinner: (submission as any).isWinner,
+                rank: (submission as any).rank,
+              };
+            });
+            setSubmissions(formattedSubmissions);
+          } catch (error) {
+            console.error("Error refreshing submissions:", error);
+          }
+        };
+        fetchSubmissions();
+      }
+    }
+  }, [isSelectWinnersConfirmed, selectWinnersHash, contractBountyId, submissionCount, publicClient]);
+
   const handleSubmitWork = async (e?: React.FormEvent) => {
     e?.preventDefault();
     
@@ -435,6 +563,77 @@ export default function OpportunityDetailPage() {
       toast.error("Failed to submit work", {
         description: error?.message || "Please try again",
         id: "submit-work",
+      });
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSelectWinners = async () => {
+    if (!authenticated) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    if (!contractBountyId) {
+      toast.error("This opportunity is not on-chain");
+      return;
+    }
+
+    if (!isCreator) {
+      toast.error("Only the creator can select winners");
+      return;
+    }
+
+    if (selectedWinners.length === 0) {
+      toast.error("Please select at least one winner");
+      return;
+    }
+
+    // Validate prize distribution sums to 100%
+    const totalPercentage = selectedWinners.reduce((sum, w) => sum + w.percentage, 0);
+    if (totalPercentage !== 100) {
+      toast.error("Prize distribution must sum to 100%");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const isOnCorrectNetwork = await ensureCorrectNetwork();
+      if (!isOnCorrectNetwork) {
+        toast.error("Please switch to BNB Testnet to continue");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Prepare arrays for contract call
+      const submissionIds = selectedWinners.map(w => BigInt(w.submissionId));
+      const ranks = selectedWinners.map(w => w.rank as 1 | 2 | 3);
+      // Convert percentages to basis points (100% = 10000 basis points)
+      // Example: 50% = 5000 basis points, 30% = 3000 basis points
+      const prizeDistribution = selectedWinners.map(w => BigInt(Math.round(w.percentage * 100)));
+
+      toast.loading("Selecting winners and distributing prizes...", { id: "select-winners" });
+
+      writeSelectWinners({
+        address: blockchainBountyAddress as `0x${string}`,
+        abi: blockchainBountyAbi,
+        functionName: "selectWinners",
+        args: [
+          BigInt(contractBountyId),
+          submissionIds,
+          ranks,
+          prizeDistribution,
+        ],
+        chainId: 97,
+      });
+
+      toast.loading("Waiting for transaction confirmation...", { id: "select-winners" });
+    } catch (error: any) {
+      console.error("Error selecting winners:", error);
+      toast.error("Failed to select winners", {
+        description: error?.message || "Please try again",
+        id: "select-winners",
       });
       setIsSubmitting(false);
     }
@@ -782,10 +981,21 @@ export default function OpportunityDetailPage() {
         {isCreator && contractBountyId && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Submissions ({submissions.length})
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Submissions ({submissions.length})
+                </CardTitle>
+                {isDeadlinePassed && submissions.length > 0 && !isBountyClosed && (
+                  <Button
+                    onClick={() => setShowSelectWinnersModal(true)}
+                    disabled={isSubmitting || isSelectWinnersPending}
+                  >
+                    <Trophy className="h-4 w-4 mr-2" />
+                    Select Winners
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {loadingSubmissions ? (
@@ -1145,6 +1355,246 @@ export default function OpportunityDetailPage() {
                     setShowSubmitModal(false);
                   }}
                   disabled={isSubmitting || isSubmitPending}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Select Winners Modal */}
+      {showSelectWinnersModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowSelectWinnersModal(false);
+            }
+          }}
+        >
+          <Card 
+            className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-background"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5" />
+                Select Winners
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setShowSelectWinnersModal(false);
+                  setSelectedWinners([]);
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="text-sm text-muted-foreground">
+                Select up to 3 winners and set prize distribution percentages. Total must equal 100%.
+              </div>
+
+              {/* Available Submissions */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Select Winners</Label>
+                {submissions
+                  .filter((s) => !s.isWinner)
+                  .map((submission, index) => {
+                    const isSelected = selectedWinners.some(w => w.submissionId === submission.id);
+                    const winnerIndex = selectedWinners.findIndex(w => w.submissionId === submission.id);
+                    
+                    return (
+                      <Card key={index} className={`border-2 ${isSelected ? 'border-primary' : ''}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-4">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  if (selectedWinners.length >= 3) {
+                                    toast.error("Maximum 3 winners allowed");
+                                    return;
+                                  }
+                                  // Get prize distribution from opportunity if available
+                                  const prizeDist = (opportunity as any)?.prize_distribution || 
+                                                   ((opportunity as any)?.prize_first && (opportunity as any)?.prize_second && (opportunity as any)?.prize_third ? {
+                                                     first: (opportunity as any).prize_first,
+                                                     second: (opportunity as any).prize_second,
+                                                     third: (opportunity as any).prize_third,
+                                                   } : null);
+                                  
+                                  let defaultPercentage = 0;
+                                  if (prizeDist) {
+                                    // Use stored prize distribution
+                                    if (selectedWinners.length === 0) {
+                                      defaultPercentage = prizeDist.first || 50;
+                                    } else if (selectedWinners.length === 1) {
+                                      defaultPercentage = prizeDist.second || 30;
+                                    } else {
+                                      defaultPercentage = prizeDist.third || 20;
+                                    }
+                                  } else {
+                                    // Fallback to default distribution
+                                    defaultPercentage = selectedWinners.length === 0 ? 50 : selectedWinners.length === 1 ? 30 : 20;
+                                  }
+                                  
+                                  setSelectedWinners([...selectedWinners, {
+                                    submissionId: submission.id,
+                                    rank: selectedWinners.length + 1,
+                                    percentage: defaultPercentage,
+                                  }]);
+                                } else {
+                                  setSelectedWinners(selectedWinners.filter(w => w.submissionId !== submission.id));
+                                }
+                              }}
+                              className="mt-1"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline">Submission #{submission.id + 1}</Badge>
+                                {submissionUsers[submission.submitter.toLowerCase()] && (
+                                  <>
+                                    {submissionUsers[submission.submitter.toLowerCase()].avatar_url && (
+                                      <img
+                                        src={submissionUsers[submission.submitter.toLowerCase()].avatar_url}
+                                        alt="Avatar"
+                                        className="w-5 h-5 rounded-full object-cover"
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).style.display = "none";
+                                        }}
+                                      />
+                                    )}
+                                    <span className="text-sm font-medium">
+                                      {submissionUsers[submission.submitter.toLowerCase()].name || 
+                                       (submissionUsers[submission.submitter.toLowerCase()].profile_data as any)?.username ||
+                                       "Unknown User"}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                              {isSelected && (
+                                <div className="grid grid-cols-2 gap-4 mt-3">
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`rank-${submission.id}`}>Rank</Label>
+                                    <Select
+                                      value={String(selectedWinners[winnerIndex]?.rank || 1)}
+                                      onValueChange={(value) => {
+                                        const updated = [...selectedWinners];
+                                        updated[winnerIndex].rank = parseInt(value);
+                                        setSelectedWinners(updated);
+                                      }}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="1">1st Place</SelectItem>
+                                        <SelectItem value="2">2nd Place</SelectItem>
+                                        <SelectItem value="3">3rd Place</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`percentage-${submission.id}`}>Prize %</Label>
+                                    <Input
+                                      id={`percentage-${submission.id}`}
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      value={selectedWinners[winnerIndex]?.percentage || 0}
+                                      onChange={(e) => {
+                                        const value = parseFloat(e.target.value) || 0;
+                                        const updated = [...selectedWinners];
+                                        updated[winnerIndex].percentage = value;
+                                        setSelectedWinners(updated);
+                                      }}
+                                      placeholder="0"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+              </div>
+
+              {/* Prize Distribution Summary */}
+              {selectedWinners.length > 0 && (
+                <Card className="bg-muted/50">
+                  <CardHeader>
+                    <CardTitle className="text-base">Prize Distribution Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {selectedWinners.map((winner, index) => {
+                      const submission = submissions.find(s => s.id === winner.submissionId);
+                      const user = submission ? submissionUsers[submission.submitter.toLowerCase()] : null;
+                      const prizeAmount = opportunity.amount * (winner.percentage / 100);
+                      
+                      return (
+                        <div key={index} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">Rank {winner.rank}</Badge>
+                            <span>
+                              {user?.name || (user?.profile_data as any)?.username || `Submission #${winner.submissionId + 1}`}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-semibold">{winner.percentage}%</div>
+                            <div className="text-xs text-muted-foreground">
+                              ${prizeAmount.toFixed(2)} {opportunity.currency}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <Separator className="my-2" />
+                    <div className="flex items-center justify-between font-semibold">
+                      <span>Total:</span>
+                      <span className={selectedWinners.reduce((sum, w) => sum + w.percentage, 0) === 100 ? "text-green-600" : "text-red-600"}>
+                        {selectedWinners.reduce((sum, w) => sum + w.percentage, 0)}%
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleSelectWinners}
+                  disabled={
+                    isSubmitting || 
+                    isSelectWinnersPending || 
+                    selectedWinners.length === 0 ||
+                    selectedWinners.reduce((sum, w) => sum + w.percentage, 0) !== 100
+                  }
+                  className="flex-1"
+                >
+                  {isSubmitting || isSelectWinnersPending ? (
+                    "Processing..."
+                  ) : (
+                    <>
+                      <Trophy className="h-4 w-4 mr-2" />
+                      Select Winners & Distribute Prizes
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowSelectWinnersModal(false);
+                    setSelectedWinners([]);
+                  }}
+                  disabled={isSubmitting || isSelectWinnersPending}
                 >
                   Cancel
                 </Button>

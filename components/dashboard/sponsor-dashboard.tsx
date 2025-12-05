@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,21 +21,54 @@ import {
   Target,
   CheckCircle,
   Clock,
+  Loader2,
 } from "lucide-react";
+import { useUser } from "@/contexts/user-context";
+import { getSponsorStatistics } from "@/lib/supabase/services/statistics";
+import { getOpportunitiesBySponsor } from "@/lib/supabase/services/opportunities";
 
 export function SponsorDashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const { user } = useUser();
+  const [stats, setStats] = useState<any>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [opportunities, setOpportunities] = useState<any[]>([]);
 
-  // Calculate stats from mock data (in real app, this would come from API)
-  const activeOpportunities = mockOpportunities.filter(
+  // Fetch real statistics
+  useEffect(() => {
+    async function fetchStats() {
+      if (!user?.id) return;
+      
+      setLoadingStats(true);
+      try {
+        const sponsorStats = await getSponsorStatistics(user.id);
+        setStats(sponsorStats);
+        
+        // Also fetch opportunities
+        const opps = await getOpportunitiesBySponsor(user.id);
+        setOpportunities(opps || []);
+      } catch (error) {
+        console.error("Error fetching sponsor statistics:", error);
+      } finally {
+        setLoadingStats(false);
+      }
+    }
+
+    if (user) {
+      fetchStats();
+    }
+  }, [user]);
+
+  // Use real stats if available, otherwise fall back to mock data
+  const activeOpportunities = stats?.activeOpportunities ?? mockOpportunities.filter(
     (o) => o.status === "active"
   ).length;
-  const totalApplicants = mockOpportunities.reduce(
-    (sum, o) => sum + (o.applicants || 0),
+  const totalApplicants = opportunities.reduce(
+    (sum, o) => sum + (o.applicants_count || 0),
     0
   );
-  const totalBudget = mockOpportunities.reduce((sum, o) => sum + o.amount, 0);
-  const completedOpportunities = mockOpportunities.filter(
+  const totalBudget = stats?.totalBudget ?? mockOpportunities.reduce((sum, o) => sum + o.amount, 0);
+  const completedOpportunities = stats?.completedOpportunities ?? mockOpportunities.filter(
     (o) => o.status === "completed"
   ).length;
 
@@ -207,39 +240,39 @@ export function SponsorDashboard() {
               <TabsTrigger value="hackathon">Hackathons</TabsTrigger>
             </TabsList>
             <TabsContent value="all">
-              <OpportunitiesTable opportunities={mockOpportunities} />
+              <OpportunitiesTable opportunities={opportunities.length > 0 ? opportunities : mockOpportunities} />
             </TabsContent>
             <TabsContent value="bounty">
               <OpportunitiesTable
-                opportunities={mockOpportunities.filter(
+                opportunities={(opportunities.length > 0 ? opportunities : mockOpportunities).filter(
                   (o) => o.type === "bounty"
                 )}
               />
             </TabsContent>
             <TabsContent value="job">
               <OpportunitiesTable
-                opportunities={mockOpportunities.filter(
+                opportunities={(opportunities.length > 0 ? opportunities : mockOpportunities).filter(
                   (o) => o.type === "job"
                 )}
               />
             </TabsContent>
             <TabsContent value="project">
               <OpportunitiesTable
-                opportunities={mockOpportunities.filter(
+                opportunities={(opportunities.length > 0 ? opportunities : mockOpportunities).filter(
                   (o) => o.type === "project"
                 )}
               />
             </TabsContent>
             <TabsContent value="grant">
               <OpportunitiesTable
-                opportunities={mockOpportunities.filter(
+                opportunities={(opportunities.length > 0 ? opportunities : mockOpportunities).filter(
                   (o) => o.type === "grant"
                 )}
               />
             </TabsContent>
             <TabsContent value="hackathon">
               <OpportunitiesTable
-                opportunities={mockOpportunities.filter(
+                opportunities={(opportunities.length > 0 ? opportunities : mockOpportunities).filter(
                   (o) => o.type === "hackathon"
                 )}
               />

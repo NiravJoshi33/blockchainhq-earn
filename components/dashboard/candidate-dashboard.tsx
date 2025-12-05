@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -22,20 +23,56 @@ import {
   ArrowRight,
   Calendar,
   MapPin,
+  Loader2,
 } from "lucide-react";
 import { mockOpportunities } from "@/lib/mock-data/opportunities";
 import Link from "next/link";
+import { useUser } from "@/contexts/user-context";
+import { usePrivy } from "@privy-io/react-auth";
+import { getUserStatistics } from "@/lib/supabase/services/statistics";
 
 export function CandidateDashboard() {
-  // Mock user data - in real app, this would come from auth/API
+  const { user } = useUser();
+  const { wallets } = usePrivy();
+  const [userStats, setUserStats] = useState<any>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  // Fetch real statistics
+  useEffect(() => {
+    async function fetchStats() {
+      const walletAddress = user?.wallet_address || wallets?.[0]?.address;
+      if (!walletAddress) {
+        setLoadingStats(false);
+        return;
+      }
+      
+      setLoadingStats(true);
+      try {
+        const stats = await getUserStatistics(walletAddress);
+        setUserStats(stats);
+      } catch (error) {
+        console.error("Error fetching user statistics:", error);
+      } finally {
+        setLoadingStats(false);
+      }
+    }
+
+    if (user || wallets?.length > 0) {
+      fetchStats();
+    }
+  }, [user, wallets]);
+
+  // Use real stats if available, otherwise fall back to mock data
   const userData = {
-    name: "Alex Hunter",
-    skills: ["React", "TypeScript", "Solana", "UI/UX"],
-    completionRate: 85,
-    totalEarnings: 12500,
-    activeApplications: 5,
-    savedOpportunities: 8,
-    completedBounties: 12,
+    name: user?.name || "Alex Hunter",
+    skills: user?.skills || ["React", "TypeScript", "Solana", "UI/UX"],
+    completionRate: userStats ? (userStats.wins > 0 ? Math.round((userStats.wins / userStats.submissions) * 100) : 0) : 85,
+    totalEarnings: userStats?.totalEarnings || 0,
+    activeApplications: 5, // This would need to come from applications table
+    savedOpportunities: 8, // This would need to come from saved_opportunities table
+    completedBounties: userStats?.wins || 0,
+    participations: userStats?.participations || 0,
+    submissions: userStats?.submissions || 0,
   };
 
   // Mock applications data
@@ -148,12 +185,18 @@ export function CandidateDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              ${userData.totalEarnings.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              From {userData.completedBounties} completed bounties
-            </p>
+            {loadingStats ? (
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">
+                  ${userData.totalEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  From {userData.completedBounties} wins
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -177,15 +220,21 @@ export function CandidateDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Completion Rate
+              Submissions
             </CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
+            <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{userData.completionRate}%</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Success rate on projects
-            </p>
+            {loadingStats ? (
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{userData.submissions}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {userData.participations} participations
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

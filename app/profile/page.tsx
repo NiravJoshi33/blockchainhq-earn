@@ -4,11 +4,49 @@ import { useUser } from "@/contexts/user-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Edit, Twitter, Github, Linkedin, Globe, MapPin, Briefcase } from "lucide-react";
+import { Loader2, Edit, Twitter, Github, Linkedin, Globe, MapPin, Briefcase, Trophy, Target, DollarSign } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { getSponsorStatistics, getUserStatistics } from "@/lib/supabase/services/statistics";
+import { useWallets } from "@privy-io/react-auth";
 
 export default function ProfilePage() {
   const { user, loading } = useUser();
+  const { wallets } = useWallets();
+  const [sponsorStats, setSponsorStats] = useState<any>(null);
+  const [userStats, setUserStats] = useState<any>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  // Fetch statistics - MUST be called before any early returns (Rules of Hooks)
+  useEffect(() => {
+    async function fetchStats() {
+      if (!user?.id) return;
+      
+      setLoadingStats(true);
+      try {
+        // Fetch sponsor stats if user is a sponsor
+        if (user.role === "sponsor") {
+          const stats = await getSponsorStatistics(user.id);
+          setSponsorStats(stats);
+        }
+        
+        // Fetch user stats (participations/submissions) if user has wallet
+        const walletAddress = user.wallet_address || wallets?.[0]?.address;
+        if (walletAddress) {
+          const stats = await getUserStatistics(walletAddress);
+          setUserStats(stats);
+        }
+      } catch (error) {
+        console.error("Error fetching statistics:", error);
+      } finally {
+        setLoadingStats(false);
+      }
+    }
+
+    if (!loading && user) {
+      fetchStats();
+    }
+  }, [user, loading, wallets]);
 
   if (loading) {
     return (
@@ -264,6 +302,88 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Statistics Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Sponsor Statistics */}
+        {user.role === "sponsor" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5" />
+                Sponsor Statistics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingStats ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Opportunities Created</span>
+                    <span className="text-2xl font-bold">{sponsorStats?.opportunitiesCreated || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Active Opportunities</span>
+                    <span className="text-2xl font-bold">{sponsorStats?.activeOpportunities || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Total Budget</span>
+                    <span className="text-2xl font-bold">${(sponsorStats?.totalBudget || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Completed</span>
+                    <span className="text-2xl font-bold">{sponsorStats?.completedOpportunities || 0}</span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* User/Hunter Statistics */}
+        {(user.role === "hunter" || !user.role) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5" />
+                Participation Statistics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingStats ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Participations</span>
+                    <span className="text-2xl font-bold">{userStats?.participations || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Submissions</span>
+                    <span className="text-2xl font-bold">{userStats?.submissions || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Wins</span>
+                    <span className="text-2xl font-bold">{userStats?.wins || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <DollarSign className="h-4 w-4" />
+                      Total Earnings
+                    </span>
+                    <span className="text-2xl font-bold text-green-600">${(userStats?.totalEarnings || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

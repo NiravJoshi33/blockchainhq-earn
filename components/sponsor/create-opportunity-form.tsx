@@ -77,6 +77,9 @@ export function CreateOpportunityForm({
     detailedDescription: "",
     submissionGuidelines: "",
     aboutOrganization: "",
+    prizeFirst: "50",
+    prizeSecond: "30",
+    prizeThird: "20",
   });
 
   const [tags, setTags] = useState<string[]>([]);
@@ -176,7 +179,9 @@ export function CreateOpportunityForm({
           // Store contract transaction info in additional metadata
           // Note: You may need to add these fields to your database schema
           // For now, storing in a JSON field or as separate columns if they exist
-          ...(opportunityType === "bounty" && { category: formData.category }),
+          ...(opportunityType === "bounty" && { 
+            category: formData.category,
+          }),
           ...(opportunityType === "job" && {
             job_type: formData.jobType,
             location: formData.location,
@@ -188,37 +193,46 @@ export function CreateOpportunityForm({
       const savedOpportunity = await createOpportunity(opportunityData);
       console.log("Opportunity saved to database:", savedOpportunity.id);
       
-      // Try to update with contract information
+      // Try to update with contract information and prize distribution
       // Note: You'll need to add these columns to your opportunities table:
       // - contract_bounty_id (text or bigint)
       // - transaction_hash (text)
+      // - prize_distribution (jsonb) or prize_first, prize_second, prize_third (numeric)
+      const updateData: any = {};
+      
       if (contractBountyId !== null && contractBountyId !== undefined) {
-        try {
-          await updateOpportunity(savedOpportunity.id, {
-            // These fields will work once you add them to your database schema
-            contract_bounty_id: String(contractBountyId),
-            transaction_hash: txHash,
-          } as any);
-          console.log("Contract info saved to database");
-        } catch (updateError) {
-          // If fields don't exist in schema, log the info for manual addition
-          console.log("Note: Add contract_bounty_id and transaction_hash columns to opportunities table");
-          console.log("Contract Bounty ID:", String(contractBountyId));
-          console.log("Transaction Hash:", txHash);
-          console.log("Saved Opportunity ID:", savedOpportunity.id);
-        }
-      } else {
-        // Still save transaction hash even if we can't extract bounty ID
-        try {
-          await updateOpportunity(savedOpportunity.id, {
-            transaction_hash: txHash,
-          } as any);
-          console.log("Transaction hash saved (bounty ID not found in receipt)");
-        } catch (updateError) {
-          console.log("Transaction Hash:", txHash);
-          console.log("Saved Opportunity ID:", savedOpportunity.id);
-          console.log("Receipt logs:", receipt?.logs);
-        }
+        updateData.contract_bounty_id = String(contractBountyId);
+      }
+      updateData.transaction_hash = txHash;
+      
+      // Store prize distribution for bounty type
+      if (opportunityType === "bounty" && formData.prizeFirst && formData.prizeSecond && formData.prizeThird) {
+        // Try to store as JSONB field (if exists)
+        updateData.prize_distribution = {
+          first: parseFloat(formData.prizeFirst),
+          second: parseFloat(formData.prizeSecond),
+          third: parseFloat(formData.prizeThird),
+        };
+        // Or try separate columns if JSONB doesn't exist
+        updateData.prize_first = parseFloat(formData.prizeFirst);
+        updateData.prize_second = parseFloat(formData.prizeSecond);
+        updateData.prize_third = parseFloat(formData.prizeThird);
+      }
+      
+      try {
+        await updateOpportunity(savedOpportunity.id, updateData);
+        console.log("Contract info and prize distribution saved to database");
+      } catch (updateError) {
+        // If fields don't exist in schema, log the info for manual addition
+        console.log("Note: Add contract_bounty_id, transaction_hash, and prize_distribution columns to opportunities table");
+        console.log("Contract Bounty ID:", contractBountyId ? String(contractBountyId) : "Not found");
+        console.log("Transaction Hash:", txHash);
+        console.log("Prize Distribution:", opportunityType === "bounty" ? {
+          first: formData.prizeFirst,
+          second: formData.prizeSecond,
+          third: formData.prizeThird,
+        } : "N/A");
+        console.log("Saved Opportunity ID:", savedOpportunity.id);
       }
 
       toast.success("Opportunity created successfully! 🎉", {
@@ -619,6 +633,110 @@ export function CreateOpportunityForm({
                 </Select>
               </div>
             </div>
+
+            {/* Prize Distribution - Only for Bounty type */}
+            {opportunityType === "bounty" && (
+              <div className="space-y-4 pt-4 border-t">
+                <div>
+                  <h4 className="text-base font-semibold mb-2">Prize Distribution</h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Set the percentage of the total prize pool for each winner position. Total must equal 100%.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="prizeFirst">
+                      1st Place (%) *
+                    </Label>
+                    <Input
+                      id="prizeFirst"
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="50"
+                      value={formData.prizeFirst}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, prizeFirst: value });
+                      }}
+                      required
+                    />
+                    {formData.amount && (
+                      <p className="text-xs text-muted-foreground">
+                        ${(parseFloat(formData.amount) * (parseFloat(formData.prizeFirst) || 0) / 100).toFixed(2)} {formData.currency}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prizeSecond">
+                      2nd Place (%) *
+                    </Label>
+                    <Input
+                      id="prizeSecond"
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="30"
+                      value={formData.prizeSecond}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, prizeSecond: value });
+                      }}
+                      required
+                    />
+                    {formData.amount && (
+                      <p className="text-xs text-muted-foreground">
+                        ${(parseFloat(formData.amount) * (parseFloat(formData.prizeSecond) || 0) / 100).toFixed(2)} {formData.currency}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prizeThird">
+                      3rd Place (%) *
+                    </Label>
+                    <Input
+                      id="prizeThird"
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="20"
+                      value={formData.prizeThird}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, prizeThird: value });
+                      }}
+                      required
+                    />
+                    {formData.amount && (
+                      <p className="text-xs text-muted-foreground">
+                        ${(parseFloat(formData.amount) * (parseFloat(formData.prizeThird) || 0) / 100).toFixed(2)} {formData.currency}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium">Total:</span>
+                  <span className={(
+                    parseFloat(formData.prizeFirst || "0") +
+                    parseFloat(formData.prizeSecond || "0") +
+                    parseFloat(formData.prizeThird || "0")
+                  ) === 100 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                    {(
+                      parseFloat(formData.prizeFirst || "0") +
+                      parseFloat(formData.prizeSecond || "0") +
+                      parseFloat(formData.prizeThird || "0")
+                    ).toFixed(1)}%
+                  </span>
+                  {(
+                    parseFloat(formData.prizeFirst || "0") +
+                    parseFloat(formData.prizeSecond || "0") +
+                    parseFloat(formData.prizeThird || "0")
+                  ) !== 100 && (
+                    <span className="text-xs text-red-600">(Must equal 100%)</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Timeline */}
