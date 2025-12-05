@@ -33,6 +33,7 @@ import { createOpportunity } from "@/lib/supabase/services/opportunities";
 import type { Database } from "@/lib/supabase/database.types";
 import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 
 type OpportunityInsert =
   Database["public"]["Tables"]["opportunities"]["Insert"];
@@ -65,6 +66,7 @@ export function CreateOpportunityForm({
     detailedDescription: "",
     submissionGuidelines: "",
     aboutOrganization: "",
+    sendDmToSuitableCandidates: false,
   });
 
   const [tags, setTags] = useState<string[]>([]);
@@ -152,6 +154,66 @@ export function CreateOpportunityForm({
         description: "Your opportunity is now live and accepting applications.",
       });
       onSuccess?.();
+
+      // Initiate AI agent to find and send DM to suitable candidates (if enabled)
+      if (formData.sendDmToSuitableCandidates) {
+        toast.info("🤖 Finding matching candidates...", {
+          description: "Our AI is searching for the best talent for this role.",
+        });
+
+        fetch("/api/match-candidates", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            opportunityData,
+            options: {
+              minMatchScore: 70,
+              maxCandidates: 20,
+              sendNotifications: true,
+            },
+          }),
+        })
+          .then((res) => res.json())
+          .then((result) => {
+            if (result.success) {
+              const { matchedCandidates, notificationsSent } = result.data;
+
+              if (matchedCandidates.length > 0) {
+                toast.success(
+                  `✅ Found ${matchedCandidates.length} matching candidates!`,
+                  {
+                    description: `Sent ${notificationsSent} Telegram notifications to top matches.`,
+                  }
+                );
+              } else {
+                toast.info("No matching candidates found yet", {
+                  description:
+                    "We'll notify you when candidates with the right skills join.",
+                });
+              }
+
+              console.log(
+                `✅ Matched ${matchedCandidates.length} candidates, sent ${notificationsSent} notifications`
+              );
+            } else {
+              toast.warning(
+                "Candidate matching is taking longer than expected",
+                {
+                  description: "We're still searching in the background.",
+                }
+              );
+            }
+          })
+          .catch((error) => {
+            console.error("Background matching failed:", error);
+            toast.warning("Could not match candidates automatically", {
+              description:
+                "Don't worry, your opportunity is still live and visible.",
+            });
+          });
+      }
     } catch (error: unknown) {
       console.error("Error creating opportunity:", error);
       const errorMessage =
@@ -179,6 +241,52 @@ export function CreateOpportunityForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* AI Matching Feature */}
+          <Card className="bg-gradient-to-br from-purple-500/5 to-blue-500/5 border-purple-500/20">
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Label
+                      htmlFor="sendDmToSuitableCandidates"
+                      className="text-base font-semibold"
+                    >
+                      🤖 AI-Powered Candidate Matching
+                    </Label>
+                    <Badge variant="secondary" className="text-xs">
+                      NEW
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Let our AI find and notify candidates whose skills match
+                    your opportunity. They&apos;ll receive personalized Telegram
+                    messages with your job details.
+                  </p>
+                </div>
+                <Switch
+                  id="sendDmToSuitableCandidates"
+                  checked={formData.sendDmToSuitableCandidates}
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      sendDmToSuitableCandidates: checked as boolean,
+                    })
+                  }
+                />
+              </div>
+              {formData.sendDmToSuitableCandidates && (
+                <div className="mt-4 p-3 bg-background/50 rounded-lg border border-purple-500/20">
+                  <p className="text-xs text-muted-foreground">
+                    ✨ <strong>How it works:</strong> After creating your
+                    opportunity, our AI will analyze candidate profiles, match
+                    them based on skills and experience, and send personalized
+                    notifications to the top 20 matches via Telegram.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Opportunity Type */}
           <div className="space-y-2">
             <Label htmlFor="type">Opportunity Type *</Label>
