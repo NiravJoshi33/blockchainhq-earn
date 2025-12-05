@@ -1,9 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import ThemeSwitch from "./theme-switcher";
-import { UserIcon } from "lucide-react";
 import { Separator } from "../ui/separator";
 import OpportunitiesDropdown from "./opportunities-dropdown";
+import WalletButton from "./wallet-button";
 
 const Navbar = () => {
   return (
@@ -28,8 +28,7 @@ const Navbar = () => {
         {/* right side */}
         <div className="flex items-center gap-4">
           <ThemeSwitch />
-
-          <UserIcon className="hover:text-brand cursor-pointer transition-all duration-300" />
+          <WalletButton />
         </div>
       </div>
     </nav>
