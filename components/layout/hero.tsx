@@ -24,7 +24,7 @@ const Hero = () => {
           className="mt-8 h-12 font-bold cursor-pointer text-lg hover:bg-brand/90 hover:text-secondary-foreground transition-all duration-300 hover:translate-x-1"
           size="lg"
           onClick={() => {
-            window.location.href = "/bounties";
+            window.location.href = "/opportunities";
           }}
         >
           Earn Your First Crypto
