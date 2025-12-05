@@ -26,6 +26,7 @@ import {
 import { useUser } from "@/contexts/user-context";
 import { getSponsorStatistics } from "@/lib/supabase/services/statistics";
 import { getOpportunitiesBySponsor } from "@/lib/supabase/services/opportunities";
+import { ContractBalanceCard } from "./contract-balance-card";
 
 export function SponsorDashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -167,6 +168,11 @@ export function SponsorDashboard() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Contract Balance */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <ContractBalanceCard />
       </div>
 
       {/* Recent Activity */}
