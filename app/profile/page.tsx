@@ -35,9 +35,22 @@ export default function ProfilePage() {
   const nameParts = (user.name || "").split(" ");
   const firstName = nameParts[0] || "";
   const lastName = nameParts.slice(1).join(" ") || "";
-  const username = user.name?.toLowerCase().replace(/\s+/g, "-") || "";
+  
+  // Get profile_data from user (it's a JSONB field)
+  const profileData = (user as any).profile_data as {
+    username?: string;
+    linkedin?: string;
+    web3Areas?: string;
+    workExperience?: string;
+    location?: string;
+    workPreference?: string;
+    proofOfWork?: string[];
+  } | null;
+  
+  const username = profileData?.username || user.name?.toLowerCase().replace(/\s+/g, "-") || "";
   const twitterHandle = user.twitter_url?.replace("https://x.com/", "").replace("https://twitter.com/", "") || "";
   const githubHandle = user.github_url?.replace("https://github.com/", "").replace("/", "") || "";
+  const linkedinUrl = profileData?.linkedin || null;
 
   return (
     <div className="container mx-auto py-8 max-w-4xl space-y-8">
@@ -111,7 +124,7 @@ export default function ProfilePage() {
       </Card>
 
       {/* SOCIALS */}
-      {(user.twitter_url || user.github_url || user.portfolio_url) && (
+      {(user.twitter_url || user.github_url || user.portfolio_url || linkedinUrl) && (
         <Card>
           <CardHeader>
             <CardTitle>SOCIALS</CardTitle>
@@ -145,6 +158,20 @@ export default function ProfilePage() {
               </div>
             )}
 
+            {linkedinUrl && (
+              <div className="flex items-center gap-3">
+                <Linkedin className="h-5 w-5 text-muted-foreground" />
+                <a
+                  href={linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm hover:underline"
+                >
+                  {linkedinUrl.replace("https://linkedin.com/in/", "linkedin.com/in/")}
+                </a>
+              </div>
+            )}
+
             {user.portfolio_url && (
               <div className="flex items-center gap-3">
                 <Globe className="h-5 w-5 text-muted-foreground" />
@@ -169,25 +196,39 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                Work Experience
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Not specified
-              </p>
-            </div>
+            {profileData?.workExperience && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  Work Experience
+                </h3>
+                <p className="text-sm">{profileData.workExperience}</p>
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Location
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Not specified
-              </p>
-            </div>
+            {profileData?.location && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Location
+                </h3>
+                <p className="text-sm">{profileData.location}</p>
+              </div>
+            )}
+
+            {profileData?.workPreference && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold">Work Preference</h3>
+                <p className="text-sm">{profileData.workPreference}</p>
+              </div>
+            )}
+
+            {profileData?.web3Areas && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold">Web3 Areas</h3>
+                <p className="text-sm">{profileData.web3Areas}</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

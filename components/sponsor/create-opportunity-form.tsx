@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,10 +29,21 @@ import type {
   DifficultyLevel,
 } from "@/lib/types/opportunities";
 import { useUser } from "@/contexts/user-context";
-import { createOpportunity } from "@/lib/supabase/services/opportunities";
+import { createOpportunity, updateOpportunity } from "@/lib/supabase/services/opportunities";
 import type { Database } from "@/lib/supabase/database.types";
 import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
+import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import {
+  blockchainBountyAddress,
+  blockchainBountyAbi,
+} from "@/components/providers/contract-abi";
+import {
+  mapFormCategoryToContract,
+  convertToWei,
+  getBountyIdFromReceipt,
+  type ContractBountyCategory,
+} from "@/lib/contract/contract-utils";
 
 type OpportunityInsert =
   Database["public"]["Tables"]["opportunities"]["Insert"];
@@ -75,6 +86,17 @@ export function CreateOpportunityForm({
   const { user, loading: userLoading } = useUser();
   const { authenticated } = usePrivy();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const processedTxHash = useRef<string | null>(null);
+  
+  // Contract interaction hooks
+  const { writeContract, data: hash, isPending: isContractPending, error: contractError } = useWriteContract();
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    data: receipt,
+  } = useWaitForTransactionReceipt({
+    hash,
+  });
 
   const handleAddTag = () => {
     if (currentTag.trim() && !tags.includes(currentTag.trim())) {
@@ -98,6 +120,116 @@ export function CreateOpportunityForm({
     setSkills(skills.filter((s) => s !== skill));
   };
 
+  // Handle contract transaction completion
+  const handleContractSuccess = async (txHash: `0x${string}`, receipt: any) => {
+    try {
+      // Extract bounty ID from transaction receipt
+      const contractBountyId = getBountyIdFromReceipt(receipt);
+      
+      // Create comprehensive description for contract (includes title and description)
+      const contractDescription = `${formData.title}\n\n${formData.description}`;
+      
+      // Convert deadline to Unix timestamp
+      const deadlineTimestamp = Math.floor(new Date(formData.deadline).getTime() / 1000);
+      
+      // Map category to contract category
+      const contractCategory = mapFormCategoryToContract(
+        formData.category,
+        opportunityType
+      );
+      
+      // Convert amount to wei
+      const stakeAmount = convertToWei(parseFloat(formData.amount), formData.currency);
+
+      // Prepare opportunity data with contract information
+      const opportunityData: Database["public"]["Tables"]["opportunities"]["Insert"] =
+        {
+          type: opportunityType,
+          title: formData.title,
+          description: formData.description,
+          organization: formData.organization,
+          sponsor_id: user.id,
+          amount: parseFloat(formData.amount),
+          currency: formData.currency,
+          deadline: new Date(formData.deadline).toISOString(),
+          difficulty_level: formData.difficultyLevel,
+          tags,
+          required_skills: skills,
+          contact_email: formData.contactEmail,
+          submission_url: formData.submissionUrl || null,
+          detailed_description: formData.detailedDescription || null,
+          submission_guidelines: formData.submissionGuidelines || null,
+          about_organization: formData.aboutOrganization || null,
+          
+          // Store contract transaction info in additional metadata
+          // Note: You may need to add these fields to your database schema
+          // For now, storing in a JSON field or as separate columns if they exist
+          ...(opportunityType === "bounty" && { category: formData.category }),
+          ...(opportunityType === "job" && {
+            job_type: formData.jobType,
+            location: formData.location,
+          }),
+          ...(opportunityType === "project" && { duration: formData.duration }),
+        };
+
+      // Save to database
+      const savedOpportunity = await createOpportunity(opportunityData);
+      
+      // Try to update with contract information
+      // Note: You'll need to add these columns to your opportunities table:
+      // - contract_bounty_id (text or bigint)
+      // - transaction_hash (text)
+      if (contractBountyId !== null) {
+        try {
+          await updateOpportunity(savedOpportunity.id, {
+            // These fields will work once you add them to your database schema
+            contract_bounty_id: contractBountyId.toString(),
+            transaction_hash: txHash,
+          } as any);
+          console.log("Contract info saved to database");
+        } catch (updateError) {
+          // If fields don't exist in schema, log the info for manual addition
+          console.log("Note: Add contract_bounty_id and transaction_hash columns to opportunities table");
+          console.log("Contract Bounty ID:", contractBountyId.toString());
+          console.log("Transaction Hash:", txHash);
+          console.log("Saved Opportunity ID:", savedOpportunity.id);
+        }
+      } else {
+        // Still save transaction hash even if we can't extract bounty ID
+        try {
+          await updateOpportunity(savedOpportunity.id, {
+            transaction_hash: txHash,
+          } as any);
+        } catch (updateError) {
+          console.log("Transaction Hash:", txHash);
+          console.log("Saved Opportunity ID:", savedOpportunity.id);
+        }
+      }
+
+      toast.success("Opportunity created successfully! 🎉", {
+        description: `Your opportunity is now live on-chain. Transaction: ${txHash.slice(0, 10)}...`,
+      });
+      onSuccess?.();
+    } catch (error: unknown) {
+      console.error("Error saving opportunity to database:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Please try again.";
+      toast.error("Contract transaction succeeded but failed to save to database", {
+        description: errorMessage,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle contract transaction when receipt is confirmed
+  useEffect(() => {
+    if (isConfirmed && receipt && hash && processedTxHash.current !== hash) {
+      processedTxHash.current = hash;
+      handleContractSuccess(hash, receipt);
+    }
+  }, [isConfirmed, receipt, hash]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -120,49 +252,55 @@ export function CreateOpportunityForm({
     setIsSubmitting(true);
 
     try {
-      const opportunityData: Database["public"]["Tables"]["opportunities"]["Insert"] =
-        {
-          type: opportunityType,
-          title: formData.title,
-          description: formData.description,
-          organization: formData.organization,
-          sponsor_id: user.id,
-          amount: parseFloat(formData.amount),
-          currency: formData.currency,
-          deadline: new Date(formData.deadline).toISOString(),
-          difficulty_level: formData.difficultyLevel,
-          tags,
-          required_skills: skills,
-          contact_email: formData.contactEmail,
-          submission_url: formData.submissionUrl || null,
-          detailed_description: formData.detailedDescription || null,
-          submission_guidelines: formData.submissionGuidelines || null,
-          about_organization: formData.aboutOrganization || null,
+      // Prepare contract call parameters
+      const contractDescription = `${formData.title}\n\n${formData.description}`;
+      const deadlineTimestamp = Math.floor(new Date(formData.deadline).getTime() / 1000);
+      const contractCategory = mapFormCategoryToContract(
+        formData.category,
+        opportunityType
+      );
+      const stakeAmount = convertToWei(parseFloat(formData.amount), formData.currency);
 
-          ...(opportunityType === "bounty" && { category: formData.category }),
-          ...(opportunityType === "job" && {
-            job_type: formData.jobType,
-            location: formData.location,
-          }),
-          ...(opportunityType === "project" && { duration: formData.duration }),
-        };
+      // Show loading toast
+      toast.loading("Preparing transaction...", { id: "create-bounty" });
 
-      await createOpportunity(opportunityData);
-      toast.success("Opportunity created successfully! 🎉", {
-        description: "Your opportunity is now live and accepting applications.",
+      // Call contract
+      writeContract({
+        address: blockchainBountyAddress as `0x${string}`,
+        abi: blockchainBountyAbi,
+        functionName: "createBounty",
+        args: [
+          contractDescription,
+          BigInt(deadlineTimestamp),
+          contractCategory,
+        ],
+        value: stakeAmount,
       });
-      onSuccess?.();
+
+      toast.loading("Waiting for transaction confirmation...", { id: "create-bounty" });
     } catch (error: unknown) {
-      console.error("Error creating opportunity:", error);
+      console.error("Error creating bounty on contract:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Please try again.";
-      toast.error("Failed to create opportunity", {
+      toast.error("Failed to create bounty on contract", {
         description: errorMessage,
+        id: "create-bounty",
       });
-    } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Handle contract errors
+  useEffect(() => {
+    if (contractError) {
+      console.error("Contract error:", contractError);
+      toast.error("Transaction failed", {
+        description: contractError.message || "Please try again.",
+        id: "create-bounty",
+      });
+      setIsSubmitting(false);
+    }
+  }, [contractError]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -602,10 +740,14 @@ export function CreateOpportunityForm({
         <Button
           type="submit"
           variant="default"
-          disabled={isSubmitting || userLoading || !authenticated}
+          disabled={isSubmitting || isContractPending || isConfirming || userLoading || !authenticated}
         >
-          {isSubmitting
-            ? "Creating..."
+          {isSubmitting || isContractPending || isConfirming
+            ? isContractPending
+              ? "Confirming transaction..."
+              : isConfirming
+              ? "Waiting for confirmation..."
+              : "Creating..."
             : userLoading
             ? "Loading..."
             : "Create Opportunity"}

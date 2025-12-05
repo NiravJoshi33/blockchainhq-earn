@@ -130,22 +130,50 @@ export default function ProfileEditPage() {
     if (user) {
       // Parse user data and populate form
       const nameParts = (user.name || "").split(" ");
+      // Get profile_data from user (it's a JSONB field)
+      const profileData = (user as any).profile_data as {
+        username?: string;
+        linkedin?: string;
+        web3Areas?: string;
+        workExperience?: string;
+        location?: string;
+        workPreference?: string;
+        proofOfWork?: string[];
+      } | null;
+      
+      // Extract LinkedIn from profile_data or from linkedin URL
+      let linkedinHandle = "";
+      if (profileData?.linkedin) {
+        linkedinHandle = profileData.linkedin
+          .replace("https://linkedin.com/in/", "")
+          .replace("linkedin.com/in/", "")
+          .replace("/", "");
+      }
+      
       setFormData({
-        username: user.name?.toLowerCase().replace(/\s+/g, "-") || "",
+        username: profileData?.username || user.name?.toLowerCase().replace(/\s+/g, "-") || "",
         firstName: nameParts[0] || "",
         lastName: nameParts.slice(1).join(" ") || "",
         email: user.email || "",
         oneLineBio: user.bio || "",
-        twitter: user.twitter_url?.replace("https://x.com/", "") || "",
-        github: user.github_url?.replace("https://github.com/", "") || "",
-        linkedin: "",
+        twitter: user.twitter_url?.replace("https://x.com/", "").replace("https://twitter.com/", "") || "",
+        github: user.github_url?.replace("https://github.com/", "").replace("/", "") || "",
+        linkedin: linkedinHandle,
         website: user.portfolio_url || "",
-        web3Areas: "",
-        workExperience: "",
-        location: "",
-        workPreference: "",
-        proofOfWork: [],
+        web3Areas: profileData?.web3Areas || "",
+        workExperience: profileData?.workExperience || "",
+        location: profileData?.location || "",
+        workPreference: profileData?.workPreference || "",
+        proofOfWork: profileData?.proofOfWork || [],
         skills: user.skills || [],
+      });
+      
+      // Debug: Log the loaded data
+      console.log("Profile data loaded:", {
+        web3Areas: profileData?.web3Areas,
+        workExperience: profileData?.workExperience,
+        location: profileData?.location,
+        workPreference: profileData?.workPreference,
       });
       if (user.avatar_url) {
         setProfileImagePreview(user.avatar_url);
@@ -546,7 +574,8 @@ export default function ProfileEditPage() {
                 What areas of Web3 are you most interested in?
               </Label>
               <Select
-                value={formData.web3Areas}
+                key={`web3Areas-${formData.web3Areas}`}
+                value={formData.web3Areas || undefined}
                 onValueChange={(value) =>
                   setFormData((prev) => ({ ...prev, web3Areas: value }))
                 }
@@ -567,7 +596,8 @@ export default function ProfileEditPage() {
             <div className="space-y-2">
               <Label htmlFor="workExperience">Work Experience</Label>
               <Select
-                value={formData.workExperience}
+                key={`workExperience-${formData.workExperience}`}
+                value={formData.workExperience || undefined}
                 onValueChange={(value) =>
                   setFormData((prev) => ({ ...prev, workExperience: value }))
                 }
@@ -588,7 +618,8 @@ export default function ProfileEditPage() {
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
               <Select
-                value={formData.location}
+                key={`location-${formData.location}`}
+                value={formData.location || undefined}
                 onValueChange={(value) =>
                   setFormData((prev) => ({ ...prev, location: value }))
                 }
@@ -609,7 +640,8 @@ export default function ProfileEditPage() {
             <div className="space-y-2">
               <Label htmlFor="workPreference">Work Preference</Label>
               <Select
-                value={formData.workPreference}
+                key={`workPreference-${formData.workPreference}`}
+                value={formData.workPreference || undefined}
                 onValueChange={(value) =>
                   setFormData((prev) => ({ ...prev, workPreference: value }))
                 }
