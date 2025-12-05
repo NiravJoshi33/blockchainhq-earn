@@ -4,47 +4,12 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { getOpportunityById } from "@/lib/supabase/services/opportunities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Calendar,
-  DollarSign,
-  Users,
-  Clock,
-  Award,
-  Briefcase,
-  Tag,
-  MapPin,
-  ExternalLink,
-  Hash,
-  X,
-  Wallet,
-  Github,
-  Twitter,
-  Youtube,
-  Link as LinkIcon,
-  FileText,
-  Trophy,
-  CheckCircle2,
-} from "lucide-react";
+import Link from "next/link";
 import type { Database } from "@/lib/supabase/database.types";
 import { useRole } from "@/contexts/role-context";
 import { useUser } from "@/contexts/user-context";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract, usePublicClient } from "wagmi";
 import {
@@ -52,9 +17,15 @@ import {
   blockchainBountyAbi,
 } from "@/components/providers/contract-abi";
 import { useNetworkSwitch } from "@/lib/contract/use-network-switch";
-import { ApplicantCount } from "@/components/opportunities/applicant-count";
 import { getUserByWalletAddress, createUser } from "@/lib/supabase/services/users";
 import { supabase } from "@/lib/supabase/client";
+import { OpportunityHero } from "@/components/opportunities/opportunity-hero";
+import { OpportunityActionButtons } from "@/components/opportunities/opportunity-action-buttons";
+import { OpportunityContentCard } from "@/components/opportunities/opportunity-content-card";
+import { TransactionDetailsCard } from "@/components/opportunities/transaction-details-card";
+import { SubmissionsListCard } from "@/components/opportunities/submissions-list-card";
+import { SubmitWorkModal } from "@/components/opportunities/submit-work-modal";
+import { SelectWinnersModal } from "@/components/opportunities/select-winners-modal";
 
 type Opportunity = Database["public"]["Tables"]["opportunities"]["Row"];
 
@@ -744,223 +715,61 @@ export default function OpportunityDetailPage() {
         <div className="container mx-auto py-8 max-w-5xl">
           <div className="flex items-start justify-between gap-6">
             <div className="space-y-4 flex-1">
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="default" className="capitalize">
-                  {opportunity.type}
-                </Badge>
-                <Badge variant="secondary">
-                  {opportunity.difficulty_level}
-                </Badge>
-                {opportunity.category && (
-                  <Badge variant="outline">{opportunity.category}</Badge>
-                )}
-                <Badge variant="outline">{opportunity.status}</Badge>
-              </div>
-
-              <h1 className="text-4xl font-bold tracking-tight">
-                {opportunity.title}
-              </h1>
-
-              <div className="flex items-center gap-4 text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Briefcase className="h-4 w-4" />
-                  <span className="text-lg">{opportunity.organization}</span>
-                </div>
-                {opportunity.type === "job" && opportunity.location && (
-                  <>
-                    <span>•</span>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      <span>{opportunity.location}</span>
-                    </div>
-                  </>
-                )}
-              </div>
+              <OpportunityHero 
+                opportunity={opportunity} 
+                daysLeft={daysLeft} 
+                deadline={deadline} 
+              />
             </div>
-
-            <div className="flex items-center gap-3 shrink-0" style={{ position: 'relative', zIndex: 10 }}>
-              {role === "hunter" && !isDeadlinePassed && (
-                <Button 
-                  size="lg" 
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log("Submit Now button clicked", { 
-                      authenticated, 
-                      contractBountyId,
-                      role,
-                      isDeadlinePassed,
-                      showSubmitModal 
-                    });
-                    
-                    if (!authenticated) {
-                      toast.error("Please connect your wallet first");
-                      return;
-                    }
-                    
-                    if (!contractBountyId) {
-                      toast.error("This opportunity is not available for on-chain submission");
-                      return;
-                    }
-                    
-                    console.log("Opening submit modal");
-                    setShowSubmitModal(true);
-                  }}
-                  style={{ 
-                    pointerEvents: 'auto',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    zIndex: 10
-                  }}
-                >
-                  Submit Now
-                </Button>
-              )}
-              {isCreator && isDeadlinePassed && contractBountyId && !isBountyClosed && (
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  onClick={handleWithdraw}
-                  disabled={isSubmitting || isRefundPending || isCancelPending}
-                >
-                  <Wallet className="h-4 w-4 mr-2" />
-                  {isSubmitting || isRefundPending || isCancelPending 
-                    ? "Processing..." 
-                    : "Withdraw Funds"}
-                </Button>
-              )}
-              {isCreator && isDeadlinePassed && contractBountyId && isBountyClosed && (
-                <Badge variant="secondary" className="px-4 py-2">
-                  Funds Withdrawn
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-background border">
-              <Award className="h-8 w-8 text-primary shrink-0" />
-              <div>
-                <div className="text-2xl font-bold">
-                  ${opportunity.amount.toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {opportunity.currency}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-background border">
-              <Users className="h-8 w-8 text-primary shrink-0" />
-              <div>
-                <div className="text-2xl font-bold">
-                  <ApplicantCount opportunity={opportunity} />
-                </div>
-                <p className="text-xs text-muted-foreground">Applicants</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-background border">
-              <Clock className="h-8 w-8 text-primary shrink-0" />
-              <div>
-                <div
-                  className={cn(
-                    "text-2xl font-bold",
-                    daysLeft < 7 && daysLeft > 0 && "text-orange-500",
-                    daysLeft <= 0 && "text-red-500"
-                  )}
-                >
-                  {daysLeft > 0 ? `${daysLeft}d` : "Ended"}
-                </div>
-                <p className="text-xs text-muted-foreground">Time Left</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-background border">
-              <Calendar className="h-8 w-8 text-primary shrink-0" />
-              <div>
-                <div className="text-sm font-bold">
-                  {deadline.toLocaleDateString()}
-                </div>
-                <p className="text-xs text-muted-foreground">Deadline</p>
-              </div>
-            </div>
+            <OpportunityActionButtons
+              role={role}
+              isDeadlinePassed={isDeadlinePassed}
+              authenticated={authenticated}
+              contractBountyId={contractBountyId}
+              isCreator={isCreator}
+              isBountyClosed={isBountyClosed}
+              isSubmitting={isSubmitting}
+              isRefundPending={isRefundPending}
+              isCancelPending={isCancelPending}
+              onWithdraw={handleWithdraw}
+              onSubmitClick={() => setShowSubmitModal(true)}
+            />
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="container mx-auto py-8 max-w-5xl space-y-8">
-        {/* Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground whitespace-pre-wrap">
-              {opportunity.description}
-            </p>
-          </CardContent>
-        </Card>
+        <OpportunityContentCard 
+          title="Overview" 
+          content={opportunity.description} 
+          type="text"
+        />
 
-        {/* Detailed Description */}
-        {opportunity.detailed_description && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <MarkdownRenderer content={opportunity.detailed_description} />
-            </CardContent>
-          </Card>
-        )}
+        <OpportunityContentCard 
+          title="Details" 
+          content={opportunity.detailed_description} 
+          type="markdown"
+        />
 
-        {/* Required Skills */}
-        {opportunity.required_skills &&
-          opportunity.required_skills.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Required Skills</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {opportunity.required_skills.map((skill) => (
-                    <Badge key={skill} variant="secondary">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <OpportunityContentCard 
+          title="Required Skills" 
+          skills={opportunity.required_skills} 
+          type="skills"
+        />
 
-        {/* Submission Guidelines */}
-        {opportunity.submission_guidelines && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Submission Guidelines</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <MarkdownRenderer content={opportunity.submission_guidelines} />
-            </CardContent>
-          </Card>
-        )}
+        <OpportunityContentCard 
+          title="Submission Guidelines" 
+          content={opportunity.submission_guidelines} 
+          type="markdown"
+        />
 
-        {/* About Organization */}
-        {opportunity.about_organization && (
-          <Card>
-            <CardHeader>
-              <CardTitle>About {opportunity.organization}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <MarkdownRenderer content={opportunity.about_organization} />
-            </CardContent>
-          </Card>
-        )}
+        <OpportunityContentCard 
+          title={`About ${opportunity.organization}`} 
+          content={opportunity.about_organization} 
+          type="markdown"
+        />
 
-        {/* Contact */}
         {opportunity.contact_email && (
           <Card>
             <CardHeader>
@@ -977,632 +786,49 @@ export default function OpportunityDetailPage() {
           </Card>
         )}
 
-        {/* Submissions - Only visible to creator/sponsor */}
-        {isCreator && contractBountyId && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Submissions ({submissions.length})
-                </CardTitle>
-                {isDeadlinePassed && submissions.length > 0 && !isBountyClosed && (
-                  <Button
-                    onClick={() => setShowSelectWinnersModal(true)}
-                    disabled={isSubmitting || isSelectWinnersPending}
-                  >
-                    <Trophy className="h-4 w-4 mr-2" />
-                    Select Winners
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingSubmissions ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Loading submissions...
-                </div>
-              ) : submissions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No submissions yet
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {submissions.map((submission, index) => (
-                    <Card key={index} className="border">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">
-                              Submission #{submission.id + 1}
-                            </Badge>
-                            {submission.isWinner && (
-                              <Badge variant="default">
-                                Winner - Rank {submission.rank}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {new Date(Number(submission.submissionTime) * 1000).toLocaleDateString()}
-                          </div>
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1 space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium">Submitted by:</span>
-                            {submissionUsers[submission.submitter.toLowerCase()] ? (
-                              <>
-                                {submissionUsers[submission.submitter.toLowerCase()].avatar_url && (
-                                  <img
-                                    src={submissionUsers[submission.submitter.toLowerCase()].avatar_url}
-                                    alt="Avatar"
-                                    className="w-6 h-6 rounded-full object-cover"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display = "none";
-                                    }}
-                                  />
-                                )}
-                                <Link
-                                  href={`/profile/${submissionUsers[submission.submitter.toLowerCase()].id}`}
-                                  className="font-semibold text-foreground hover:text-primary hover:underline"
-                                >
-                                  {submissionUsers[submission.submitter.toLowerCase()].name || 
-                                   (submissionUsers[submission.submitter.toLowerCase()].profile_data as any)?.username ||
-                                   "Unknown User"}
-                                </Link>
-                                <span className="text-xs text-muted-foreground">•</span>
-                                <a
-                                  href={`https://testnet.bscscan.com/address/${submission.submitter}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="font-mono text-xs text-primary hover:underline flex items-center gap-1"
-                                >
-                                  {submission.submitter.slice(0, 6)}...{submission.submitter.slice(-4)}
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
-                              </>
-                            ) : (
-                              <a
-                                href={`https://testnet.bscscan.com/address/${submission.submitter}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-mono text-xs text-primary hover:underline flex items-center gap-1"
-                              >
-                                {submission.submitter.slice(0, 6)}...{submission.submitter.slice(-4)}
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {submission.submissionLink && (
-                            <a
-                              href={submission.submissionLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-primary hover:underline"
-                            >
-                              <LinkIcon className="h-4 w-4" />
-                              Submission Link
-                            </a>
-                          )}
-                          {submission.githubLink && (
-                            <a
-                              href={submission.githubLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-primary hover:underline"
-                            >
-                              <Github className="h-4 w-4" />
-                              GitHub Repository
-                            </a>
-                          )}
-                          {submission.twitterLink && (
-                            <a
-                              href={submission.twitterLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-primary hover:underline"
-                            >
-                              <Twitter className="h-4 w-4" />
-                              Project Twitter
-                            </a>
-                          )}
-                          {submission.videoLink && (
-                            <a
-                              href={submission.videoLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-primary hover:underline"
-                            >
-                              <Youtube className="h-4 w-4" />
-                              Video Trailer
-                            </a>
-                          )}
-                          {submission.indieFunLink && (
-                            <a
-                              href={submission.indieFunLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-primary hover:underline"
-                            >
-                              <LinkIcon className="h-4 w-4" />
-                              Indie.fun Page
-                            </a>
-                          )}
-                          {submission.tweetLink && (
-                            <a
-                              href={submission.tweetLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-primary hover:underline"
-                            >
-                              <Twitter className="h-4 w-4" />
-                              Tweet Link
-                            </a>
-                          )}
-                          {submission.projectLink && (
-                            <a
-                              href={submission.projectLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-primary hover:underline"
-                            >
-                              <LinkIcon className="h-4 w-4" />
-                              Live Project
-                            </a>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        <SubmissionsListCard
+          submissions={submissions}
+          loading={loadingSubmissions}
+          isCreator={isCreator}
+          isDeadlinePassed={isDeadlinePassed}
+          isBountyClosed={isBountyClosed}
+          submissionUsers={submissionUsers}
+          isSubmitting={isSubmitting}
+          isSelectWinnersPending={isSelectWinnersPending}
+          onSelectWinnersClick={() => setShowSelectWinnersModal(true)}
+        />
 
-        {/* Transaction Details */}
-        {(opportunity as any).transaction_hash && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Hash className="h-5 w-5" />
-                Blockchain Transaction
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Transaction Hash:
-                  </span>
-                  <a
-                    href={`https://testnet.bscscan.com/tx/${(opportunity as any).transaction_hash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline flex items-center gap-1 text-sm font-mono"
-                  >
-                    {(opportunity as any).transaction_hash.slice(0, 10)}...
-                    {(opportunity as any).transaction_hash.slice(-8)}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-                {(opportunity as any).contract_bounty_id && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">
-                      Contract Bounty ID:
-                    </span>
-                    <span className="text-sm font-mono">
-                      #{(opportunity as any).contract_bounty_id}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="pt-2 border-t">
-                <a
-                  href={`https://testnet.bscscan.com/tx/${(opportunity as any).transaction_hash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline flex items-center gap-1"
-                >
-                  View on BSCScan
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <TransactionDetailsCard
+          transactionHash={(opportunity as any).transaction_hash}
+          contractBountyId={(opportunity as any).contract_bounty_id}
+        />
       </div>
 
-      {/* Submission Modal */}
-      {showSubmitModal && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowSubmitModal(false);
-            }
-          }}
-        >
-          <Card 
-            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-background"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Submit Your Work</CardTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowSubmitModal(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="submissionLink">
-                  Submission Link <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="submissionLink"
-                  placeholder="https://..."
-                  value={submissionData.submissionLink}
-                  onChange={(e) =>
-                    setSubmissionData({ ...submissionData, submissionLink: e.target.value })
-                  }
-                />
-              </div>
+      <SubmitWorkModal
+        open={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+        submissionData={submissionData}
+        onSubmissionDataChange={setSubmissionData}
+        onSubmit={handleSubmitWork}
+        isSubmitting={isSubmitting}
+        isSubmitPending={isSubmitPending}
+      />
 
-              <div className="space-y-2">
-                <Label htmlFor="githubLink">
-                  GitHub Repository <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="githubLink"
-                  placeholder="https://github.com/..."
-                  value={submissionData.githubLink}
-                  onChange={(e) =>
-                    setSubmissionData({ ...submissionData, githubLink: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="twitterLink">
-                  Project Twitter <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="twitterLink"
-                  placeholder="https://twitter.com/... or https://x.com/..."
-                  value={submissionData.twitterLink}
-                  onChange={(e) =>
-                    setSubmissionData({ ...submissionData, twitterLink: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="videoLink">
-                  Video Trailer <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="videoLink"
-                  placeholder="https://youtube.com/... or https://vimeo.com/..."
-                  value={submissionData.videoLink}
-                  onChange={(e) =>
-                    setSubmissionData({ ...submissionData, videoLink: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="indieFunLink">
-                  Indie.fun Page <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="indieFunLink"
-                  placeholder="https://indie.fun/..."
-                  value={submissionData.indieFunLink}
-                  onChange={(e) =>
-                    setSubmissionData({ ...submissionData, indieFunLink: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="tweetLink">Tweet Link (Optional)</Label>
-                <Input
-                  id="tweetLink"
-                  placeholder="https://twitter.com/.../status/..."
-                  value={submissionData.tweetLink}
-                  onChange={(e) =>
-                    setSubmissionData({ ...submissionData, tweetLink: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="projectLink">Live Project Link (Optional)</Label>
-                <Input
-                  id="projectLink"
-                  placeholder="https://..."
-                  value={submissionData.projectLink}
-                  onChange={(e) =>
-                    setSubmissionData({ ...submissionData, projectLink: e.target.value })
-                  }
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    console.log("Submit button clicked");
-                    handleSubmitWork(e);
-                  }}
-                  disabled={isSubmitting || isSubmitPending}
-                  className="flex-1"
-                >
-                  {isSubmitting || isSubmitPending ? "Submitting..." : "Submit Work"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    console.log("Cancel button clicked");
-                    setShowSubmitModal(false);
-                  }}
-                  disabled={isSubmitting || isSubmitPending}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Select Winners Modal */}
-      {showSelectWinnersModal && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowSelectWinnersModal(false);
-            }
-          }}
-        >
-          <Card 
-            className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-background"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5" />
-                Select Winners
-              </CardTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setShowSelectWinnersModal(false);
-                  setSelectedWinners([]);
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="text-sm text-muted-foreground">
-                Select up to 3 winners and set prize distribution percentages. Total must equal 100%.
-              </div>
-
-              {/* Available Submissions */}
-              <div className="space-y-3">
-                <Label className="text-base font-semibold">Select Winners</Label>
-                {submissions
-                  .filter((s) => !s.isWinner)
-                  .map((submission, index) => {
-                    const isSelected = selectedWinners.some(w => w.submissionId === submission.id);
-                    const winnerIndex = selectedWinners.findIndex(w => w.submissionId === submission.id);
-                    
-                    return (
-                      <Card key={index} className={`border-2 ${isSelected ? 'border-primary' : ''}`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-4">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  if (selectedWinners.length >= 3) {
-                                    toast.error("Maximum 3 winners allowed");
-                                    return;
-                                  }
-                                  // Get prize distribution from opportunity if available
-                                  const prizeDist = (opportunity as any)?.prize_distribution || 
-                                                   ((opportunity as any)?.prize_first && (opportunity as any)?.prize_second && (opportunity as any)?.prize_third ? {
-                                                     first: (opportunity as any).prize_first,
-                                                     second: (opportunity as any).prize_second,
-                                                     third: (opportunity as any).prize_third,
-                                                   } : null);
-                                  
-                                  let defaultPercentage = 0;
-                                  if (prizeDist) {
-                                    // Use stored prize distribution
-                                    if (selectedWinners.length === 0) {
-                                      defaultPercentage = prizeDist.first || 50;
-                                    } else if (selectedWinners.length === 1) {
-                                      defaultPercentage = prizeDist.second || 30;
-                                    } else {
-                                      defaultPercentage = prizeDist.third || 20;
-                                    }
-                                  } else {
-                                    // Fallback to default distribution
-                                    defaultPercentage = selectedWinners.length === 0 ? 50 : selectedWinners.length === 1 ? 30 : 20;
-                                  }
-                                  
-                                  setSelectedWinners([...selectedWinners, {
-                                    submissionId: submission.id,
-                                    rank: selectedWinners.length + 1,
-                                    percentage: defaultPercentage,
-                                  }]);
-                                } else {
-                                  setSelectedWinners(selectedWinners.filter(w => w.submissionId !== submission.id));
-                                }
-                              }}
-                              className="mt-1"
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="outline">Submission #{submission.id + 1}</Badge>
-                                {submissionUsers[submission.submitter.toLowerCase()] && (
-                                  <>
-                                    {submissionUsers[submission.submitter.toLowerCase()].avatar_url && (
-                                      <img
-                                        src={submissionUsers[submission.submitter.toLowerCase()].avatar_url}
-                                        alt="Avatar"
-                                        className="w-5 h-5 rounded-full object-cover"
-                                        onError={(e) => {
-                                          (e.target as HTMLImageElement).style.display = "none";
-                                        }}
-                                      />
-                                    )}
-                                    <span className="text-sm font-medium">
-                                      {submissionUsers[submission.submitter.toLowerCase()].name || 
-                                       (submissionUsers[submission.submitter.toLowerCase()].profile_data as any)?.username ||
-                                       "Unknown User"}
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                              {isSelected && (
-                                <div className="grid grid-cols-2 gap-4 mt-3">
-                                  <div className="space-y-2">
-                                    <Label htmlFor={`rank-${submission.id}`}>Rank</Label>
-                                    <Select
-                                      value={String(selectedWinners[winnerIndex]?.rank || 1)}
-                                      onValueChange={(value) => {
-                                        const updated = [...selectedWinners];
-                                        updated[winnerIndex].rank = parseInt(value);
-                                        setSelectedWinners(updated);
-                                      }}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="1">1st Place</SelectItem>
-                                        <SelectItem value="2">2nd Place</SelectItem>
-                                        <SelectItem value="3">3rd Place</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor={`percentage-${submission.id}`}>Prize %</Label>
-                                    <Input
-                                      id={`percentage-${submission.id}`}
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      value={selectedWinners[winnerIndex]?.percentage || 0}
-                                      onChange={(e) => {
-                                        const value = parseFloat(e.target.value) || 0;
-                                        const updated = [...selectedWinners];
-                                        updated[winnerIndex].percentage = value;
-                                        setSelectedWinners(updated);
-                                      }}
-                                      placeholder="0"
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-              </div>
-
-              {/* Prize Distribution Summary */}
-              {selectedWinners.length > 0 && (
-                <Card className="bg-muted/50">
-                  <CardHeader>
-                    <CardTitle className="text-base">Prize Distribution Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {selectedWinners.map((winner, index) => {
-                      const submission = submissions.find(s => s.id === winner.submissionId);
-                      const user = submission ? submissionUsers[submission.submitter.toLowerCase()] : null;
-                      const prizeAmount = opportunity.amount * (winner.percentage / 100);
-                      
-                      return (
-                        <div key={index} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">Rank {winner.rank}</Badge>
-                            <span>
-                              {user?.name || (user?.profile_data as any)?.username || `Submission #${winner.submissionId + 1}`}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-semibold">{winner.percentage}%</div>
-                            <div className="text-xs text-muted-foreground">
-                              ${prizeAmount.toFixed(2)} {opportunity.currency}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <Separator className="my-2" />
-                    <div className="flex items-center justify-between font-semibold">
-                      <span>Total:</span>
-                      <span className={selectedWinners.reduce((sum, w) => sum + w.percentage, 0) === 100 ? "text-green-600" : "text-red-600"}>
-                        {selectedWinners.reduce((sum, w) => sum + w.percentage, 0)}%
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  onClick={handleSelectWinners}
-                  disabled={
-                    isSubmitting || 
-                    isSelectWinnersPending || 
-                    selectedWinners.length === 0 ||
-                    selectedWinners.reduce((sum, w) => sum + w.percentage, 0) !== 100
-                  }
-                  className="flex-1"
-                >
-                  {isSubmitting || isSelectWinnersPending ? (
-                    "Processing..."
-                  ) : (
-                    <>
-                      <Trophy className="h-4 w-4 mr-2" />
-                      Select Winners & Distribute Prizes
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowSelectWinnersModal(false);
-                    setSelectedWinners([]);
-                  }}
-                  disabled={isSubmitting || isSelectWinnersPending}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <SelectWinnersModal
+        open={showSelectWinnersModal}
+        onClose={() => {
+          setShowSelectWinnersModal(false);
+          setSelectedWinners([]);
+        }}
+        submissions={submissions}
+        submissionUsers={submissionUsers}
+        opportunity={opportunity}
+        selectedWinners={selectedWinners}
+        onSelectedWinnersChange={setSelectedWinners}
+        onSubmit={handleSelectWinners}
+        isSubmitting={isSubmitting}
+        isSelectWinnersPending={isSelectWinnersPending}
+      />
     </div>
   );
 }
