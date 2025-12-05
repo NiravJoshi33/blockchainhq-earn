@@ -1,9 +1,10 @@
-import { Opportunity } from "@/lib/types/opportunities";
 import { supabase } from "../client";
 import type { Database } from "../database.types";
 
 type OpportunityInsert =
   Database["public"]["Tables"]["opportunities"]["Insert"];
+type OpportunityUpdate =
+  Database["public"]["Tables"]["opportunities"]["Update"];
 
 export async function getOpportunities(filters?: {
   type?: string;
@@ -50,10 +51,7 @@ export async function createOpportunity(opportunity: OpportunityInsert) {
   return data;
 }
 
-export async function updateOpportunity(
-  id: string,
-  updates: Partial<Opportunity>
-) {
+export async function updateOpportunity(id: string, updates: any) {
   const { data, error } = await supabase
     .from("opportunities")
     .update(updates)

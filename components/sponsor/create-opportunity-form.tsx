@@ -27,7 +27,6 @@ import type {
   JobType,
   ProjectDuration,
   DifficultyLevel,
-  Opportunity,
 } from "@/lib/types/opportunities";
 import { useUser } from "@/contexts/user-context";
 import { createOpportunity } from "@/lib/supabase/services/opportunities";
@@ -155,8 +154,10 @@ export function CreateOpportunityForm({
       onSuccess?.();
     } catch (error: unknown) {
       console.error("Error creating opportunity:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Please try again.";
       toast.error("Failed to create opportunity", {
-        description: error?.message || "Please try again.",
+        description: errorMessage,
       });
     } finally {
       setIsSubmitting(false);

@@ -30,10 +30,19 @@ export async function createApplication(application: {
 
   if (error) throw error;
 
-  // Increment applicants count
-  await supabase.rpc("increment_applicants_count", {
-    opportunity_id: application.opportunity_id,
-  });
+  // Increment applicants count using direct query
+  const { data: opportunity } = await supabase
+    .from("opportunities")
+    .select("applicants_count")
+    .eq("id", application.opportunity_id)
+    .single();
+
+  if (opportunity) {
+    await supabase
+      .from("opportunities")
+      .update({ applicants_count: (opportunity.applicants_count || 0) + 1 })
+      .eq("id", application.opportunity_id);
+  }
 
   return data;
 }

@@ -5,7 +5,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { OpportunitiesListingTable } from "@/components/opportunities/opportunities-listing-table";
 import { getOpportunities } from "@/lib/supabase/services/opportunities";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Opportunity, OpportunityType } from "@/lib/types/opportunities";
+import type { OpportunityType } from "@/lib/types/opportunities";
+import type { Database } from "@/lib/supabase/database.types";
+
+type OpportunityRow = Database["public"]["Tables"]["opportunities"]["Row"];
 
 export default function OpportunitiesPage() {
   const searchParams = useSearchParams();
@@ -18,7 +21,7 @@ export default function OpportunitiesPage() {
       ? (typeParam as OpportunityType)
       : "all";
 
-  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [opportunities, setOpportunities] = useState<OpportunityRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
