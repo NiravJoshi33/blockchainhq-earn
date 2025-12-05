@@ -42,7 +42,9 @@ function PrivyWrapper({ children }: { children: React.ReactNode }) {
         },
         loginMethods: ["wallet", "email", "google"],
         embeddedWallets: {
-          createOnLogin: "users-without-wallets",
+          ethereum: {
+            createOnLogin: "users-without-wallets",
+          },
         },
         defaultChain: bscTestnet,
         supportedChains: [bsc, bscTestnet, opBNB, opBNBTestnet],
