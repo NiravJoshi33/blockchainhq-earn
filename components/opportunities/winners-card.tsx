@@ -32,7 +32,6 @@ export function WinnersCard({ contractBountyId, opportunity }: WinnersCardProps)
     },
   });
 
-  // Fetch user data for winners
   useEffect(() => {
     async function fetchWinnerUsers() {
       if (!winners || !Array.isArray(winners) || winners.length === 0) {
@@ -58,7 +57,6 @@ export function WinnersCard({ contractBountyId, opportunity }: WinnersCardProps)
 
         setWinnersUsers(usersMap);
       } catch (error) {
-        console.error("Error fetching winner users:", error);
       } finally {
         setLoadingUsers(false);
       }
@@ -91,7 +89,6 @@ export function WinnersCard({ contractBountyId, opportunity }: WinnersCardProps)
     return null;
   }
 
-  // Sort winners by rank (1st, 2nd, 3rd)
   const sortedWinners = [...winners].sort((a: any, b: any) => {
     const rankA = a.rank || a[1] || 0;
     const rankB = b.rank || b[1] || 0;

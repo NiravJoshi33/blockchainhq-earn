@@ -4,9 +4,6 @@ import { useReadContract } from "wagmi";
 import { blockchainBountyAddress, blockchainBountyAbi } from "@/components/providers/contract-abi";
 import { ContractBountyCategory } from "./contract-utils";
 
-/**
- * Hook to get active bounty IDs by category from the contract
- */
 export function useActiveBountiesByCategory(category: ContractBountyCategory) {
   const { data, isLoading, error, refetch } = useReadContract({
     address: blockchainBountyAddress as `0x${string}`,
@@ -23,9 +20,6 @@ export function useActiveBountiesByCategory(category: ContractBountyCategory) {
   };
 }
 
-/**
- * Hook to get all bounty IDs by category from the contract
- */
 export function useBountiesByCategory(category: ContractBountyCategory) {
   const { data, isLoading, error, refetch } = useReadContract({
     address: blockchainBountyAddress as `0x${string}`,
@@ -42,9 +36,6 @@ export function useBountiesByCategory(category: ContractBountyCategory) {
   };
 }
 
-/**
- * Hook to get bounty count by category from the contract
- */
 export function useBountyCountByCategory(category: ContractBountyCategory) {
   const { data, isLoading, error, refetch } = useReadContract({
     address: blockchainBountyAddress as `0x${string}`,
@@ -61,9 +52,6 @@ export function useBountyCountByCategory(category: ContractBountyCategory) {
   };
 }
 
-/**
- * Hook to get contract balance
- */
 export function useContractBalance() {
   const { data, isLoading, error, refetch } = useReadContract({
     address: blockchainBountyAddress as `0x${string}`,

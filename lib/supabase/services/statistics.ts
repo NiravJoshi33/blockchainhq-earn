@@ -11,14 +11,8 @@ const publicClient = createPublicClient({
   transport: http(),
 });
 
-/**
- * Get statistics for a sponsor
- * @param sponsorId - The sponsor's user ID
- * @returns Statistics including opportunities created count
- */
 export async function getSponsorStatistics(sponsorId: string) {
   try {
-    // Get all opportunities created by this sponsor
     const { data: opportunities, error } = await supabase
       .from("opportunities")
       .select("id, contract_bounty_id, amount, currency")
@@ -28,10 +22,8 @@ export async function getSponsorStatistics(sponsorId: string) {
 
     const opportunitiesCreated = opportunities?.length || 0;
     
-    // Calculate total budget allocated
-    const totalBudget = opportunities?.reduce((sum, opp) => sum + (opp.amount || 0), 0) || 0;
+    const totalBudget = opportunities?.reduce((sum, opp) => sum + ((opp as any).amount || 0), 0) || 0;
 
-    // Count active opportunities (deadline not passed)
     const now = new Date();
     const { data: activeOpportunities } = await supabase
       .from("opportunities")
@@ -48,7 +40,6 @@ export async function getSponsorStatistics(sponsorId: string) {
       completedOpportunities: opportunitiesCreated - activeCount,
     };
   } catch (error) {
-    console.error("Error fetching sponsor statistics:", error);
     return {
       opportunitiesCreated: 0,
       totalBudget: 0,
@@ -58,11 +49,6 @@ export async function getSponsorStatistics(sponsorId: string) {
   }
 }
 
-/**
- * Get statistics for a user/hunter
- * @param walletAddress - The user's wallet address
- * @returns Statistics including participations and submissions count
- */
 export async function getUserStatistics(walletAddress: string) {
   try {
     if (!walletAddress) {
@@ -74,7 +60,6 @@ export async function getUserStatistics(walletAddress: string) {
       };
     }
 
-    // Get all opportunities with contract_bounty_id
     const { data: opportunities, error } = await supabase
       .from("opportunities")
       .select("id, contract_bounty_id, amount, currency")
@@ -96,17 +81,16 @@ export async function getUserStatistics(walletAddress: string) {
     let totalEarnings = 0;
     const participatedBounties = new Set<string>();
 
-    // Check each opportunity for submissions
     for (const opp of opportunities) {
-      if (!opp.contract_bounty_id) continue;
+      const oppAny = opp as any;
+      if (!oppAny.contract_bounty_id) continue;
 
       try {
-        // Get submission count for this bounty
         const submissionCount = await publicClient.readContract({
           address: blockchainBountyAddress as `0x${string}`,
           abi: blockchainBountyAbi,
           functionName: "getSubmissionCount",
-          args: [BigInt(opp.contract_bounty_id)],
+          args: [BigInt(oppAny.contract_bounty_id)],
         });
 
         const count = typeof submissionCount === 'bigint' 
@@ -115,14 +99,13 @@ export async function getUserStatistics(walletAddress: string) {
 
         if (count === 0) continue;
 
-        // Check each submission to see if this user submitted
         for (let i = 0; i < count; i++) {
           try {
             const submission = await publicClient.readContract({
               address: blockchainBountyAddress as `0x${string}`,
               abi: blockchainBountyAbi,
               functionName: "getSubmission",
-              args: [BigInt(opp.contract_bounty_id), BigInt(i)],
+              args: [BigInt(oppAny.contract_bounty_id), BigInt(i)],
             });
 
             if (Array.isArray(submission)) {
@@ -132,13 +115,11 @@ export async function getUserStatistics(walletAddress: string) {
 
               if (submitter === walletAddress.toLowerCase()) {
                 submissions++;
-                participatedBounties.add(opp.contract_bounty_id);
+                participatedBounties.add(oppAny.contract_bounty_id);
                 
                 if (isWinner && rank > 0) {
                   wins++;
-                  // Calculate earnings based on rank and prize distribution
-                  // This is approximate - actual earnings would need prize_distribution from DB
-                  const prizeDist = (opp as any)?.prize_distribution || {
+                  const prizeDist = oppAny?.prize_distribution || {
                     first: 50,
                     second: 30,
                     third: 20,
@@ -149,18 +130,14 @@ export async function getUserStatistics(walletAddress: string) {
                   else if (rank === 2) percentage = prizeDist.second || 30;
                   else if (rank === 3) percentage = prizeDist.third || 20;
                   
-                  totalEarnings += (opp.amount || 0) * (percentage / 100);
+                  totalEarnings += (oppAny.amount || 0) * (percentage / 100);
                 }
               }
             }
           } catch (submissionError) {
-            // Skip if submission read fails
-            console.warn(`Failed to read submission ${i} for bounty ${opp.contract_bounty_id}:`, submissionError);
           }
         }
       } catch (bountyError) {
-        // Skip if bounty read fails
-        console.warn(`Failed to read bounty ${opp.contract_bounty_id}:`, bountyError);
       }
     }
 
@@ -171,7 +148,6 @@ export async function getUserStatistics(walletAddress: string) {
       totalEarnings,
     };
   } catch (error) {
-    console.error("Error fetching user statistics:", error);
     return {
       participations: 0,
       submissions: 0,

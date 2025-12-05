@@ -95,26 +95,22 @@ export function OpportunitiesTable({ opportunities }: OpportunitiesTableProps) {
           break;
 
         case "edit":
-          // For on-chain bounties, editing is not applicable
           if ((opportunity as any).contract_bounty_id) {
             toast.info("On-chain bounties cannot be edited. You can only view or delete them.");
             return;
           }
-          // Navigate to edit page for non-on-chain opportunities
           router.push(`/opportunities/${opportunity.id}/edit`);
           break;
 
         case "pause":
           await updateOpportunity(opportunity.id, { status: "paused" });
           toast.success("Opportunity paused successfully");
-          // Refresh the page to show updated status
           window.location.reload();
           break;
 
         case "activate":
           await updateOpportunity(opportunity.id, { status: "active" });
           toast.success("Opportunity activated successfully");
-          // Refresh the page to show updated status
           window.location.reload();
           break;
 
@@ -122,7 +118,6 @@ export function OpportunitiesTable({ opportunities }: OpportunitiesTableProps) {
           if (confirm(`Are you sure you want to delete "${opportunity.title}"? This action cannot be undone.`)) {
             await deleteOpportunity(opportunity.id);
             toast.success("Opportunity deleted successfully");
-            // Refresh the page to show updated list
             window.location.reload();
           }
           break;

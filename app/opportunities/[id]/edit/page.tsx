@@ -50,14 +50,12 @@ export default function EditOpportunityPage() {
         const id = params.id as string;
         const data = await getOpportunityById(id);
         
-        // Check if opportunity has contract_bounty_id (on-chain)
         if ((data as any).contract_bounty_id) {
           toast.error("On-chain bounties cannot be edited");
           router.push(`/opportunities/${id}`);
           return;
         }
 
-        // Check if user is the creator
         if (data.created_by !== user?.id) {
           toast.error("You can only edit your own opportunities");
           router.push(`/opportunities/${id}`);
@@ -66,7 +64,6 @@ export default function EditOpportunityPage() {
 
         setOpportunity(data);
         
-        // Pre-fill form with existing data
         setFormData({
           title: data.title || "",
           description: data.description || "",
@@ -86,7 +83,6 @@ export default function EditOpportunityPage() {
         setTags(data.tags || []);
         setSkills(data.required_skills || []);
       } catch (error: any) {
-        console.error("Error fetching opportunity:", error);
         toast.error("Failed to load opportunity", {
           description: error.message || "Please try again",
         });
@@ -152,7 +148,6 @@ export default function EditOpportunityPage() {
       toast.success("Opportunity updated successfully");
       router.push(`/opportunities/${opportunity.id}`);
     } catch (error: any) {
-      console.error("Error updating opportunity:", error);
       toast.error("Failed to update opportunity", {
         description: error.message || "Please try again",
       });

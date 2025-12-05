@@ -30,7 +30,6 @@ export async function createApplication(application: {
 
   if (error) throw error;
 
-  // Increment applicants count using direct query
   const { data: opportunity } = await supabase
     .from("opportunities")
     .select("applicants_count")

@@ -30,7 +30,6 @@ import {
   Loader2,
 } from "lucide-react";
 
-// Available skills list
 const ALL_SKILLS = [
   "Frontend",
   "React",
@@ -53,7 +52,6 @@ const ALL_SKILLS = [
   "UI/UX Design",
 ];
 
-// Web3 areas
 const WEB3_AREAS = [
   "DeFi",
   "NFTs",
@@ -67,7 +65,6 @@ const WEB3_AREAS = [
   "Other",
 ];
 
-// Experience levels
 const EXPERIENCE_LEVELS = [
   "Beginner",
   "Intermediate",
@@ -75,7 +72,6 @@ const EXPERIENCE_LEVELS = [
   "Expert",
 ];
 
-// Work preferences
 const WORK_PREFERENCES = [
   "Full-time",
   "Part-time",
@@ -85,7 +81,6 @@ const WORK_PREFERENCES = [
   "Grant",
 ];
 
-// Countries (simplified list)
 const COUNTRIES = [
   "India",
   "United States",
@@ -129,9 +124,7 @@ export default function ProfileEditPage() {
 
   useEffect(() => {
     if (user) {
-      // Parse user data and populate form
       const nameParts = (user.name || "").split(" ");
-      // Get profile_data from user (it's a JSONB field)
       const profileData = (user as any).profile_data as {
         username?: string;
         linkedin?: string;
@@ -142,7 +135,6 @@ export default function ProfileEditPage() {
         proofOfWork?: string[];
       } | null;
       
-      // Extract LinkedIn from profile_data or from linkedin URL
       let linkedinHandle = "";
       if (profileData?.linkedin) {
         linkedinHandle = profileData.linkedin

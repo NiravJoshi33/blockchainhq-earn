@@ -92,10 +92,7 @@ export function CreateOpportunityForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const processedTxHash = useRef<string | null>(null);
   
-  // Network switching hook
   const { ensureCorrectNetwork, isSwitching, isCorrectNetwork } = useNetworkSwitch();
-  
-  // Contract interaction hooks
   const { writeContract, data: hash, isPending: isContractPending, error: contractError } = useWriteContract();
   const {
     isLoading: isConfirming,
@@ -108,17 +105,6 @@ export function CreateOpportunityForm({
       enabled: !!hash,
     },
   });
-  
-  // Log receipt status for debugging
-  useEffect(() => {
-    if (hash) {
-      console.log("Transaction hash:", hash);
-      console.log("Is confirming:", isConfirming);
-      console.log("Is confirmed:", isConfirmed);
-      console.log("Receipt:", receipt);
-      console.log("Receipt error:", receiptError);
-    }
-  }, [hash, isConfirming, isConfirmed, receipt, receiptError]);
 
   const handleAddTag = () => {
     if (currentTag.trim() && !tags.includes(currentTag.trim())) {
@@ -142,21 +128,13 @@ export function CreateOpportunityForm({
     setSkills(skills.filter((s) => s !== skill));
   };
 
-  // Handle contract transaction completion
   const handleContractSuccess = async (txHash: `0x${string}`, receipt: any) => {
     try {
-      console.log("Transaction confirmed, processing receipt...", { txHash, receipt });
-      
-      // Validate user exists
       if (!user?.id) {
         throw new Error("User not found. Please refresh and try again.");
       }
       
-      // Extract bounty ID from transaction receipt
       const contractBountyId = getBountyIdFromReceipt(receipt);
-      console.log("Extracted bounty ID:", contractBountyId);
-      
-      // Prepare opportunity data with contract information
       const opportunityData: Database["public"]["Tables"]["opportunities"]["Insert"] =
         {
           type: opportunityType,
@@ -176,9 +154,6 @@ export function CreateOpportunityForm({
           submission_guidelines: formData.submissionGuidelines || null,
           about_organization: formData.aboutOrganization || null,
           
-          // Store contract transaction info in additional metadata
-          // Note: You may need to add these fields to your database schema
-          // For now, storing in a JSON field or as separate columns if they exist
           ...(opportunityType === "bounty" && { 
             category: formData.category,
           }),
@@ -189,15 +164,8 @@ export function CreateOpportunityForm({
           ...(opportunityType === "project" && { duration: formData.duration }),
         };
 
-      // Save to database
       const savedOpportunity = await createOpportunity(opportunityData);
-      console.log("Opportunity saved to database:", savedOpportunity.id);
       
-      // Try to update with contract information and prize distribution
-      // Note: You'll need to add these columns to your opportunities table:
-      // - contract_bounty_id (text or bigint)
-      // - transaction_hash (text)
-      // - prize_distribution (jsonb) or prize_first, prize_second, prize_third (numeric)
       const updateData: any = {};
       
       if (contractBountyId !== null && contractBountyId !== undefined) {
@@ -205,15 +173,12 @@ export function CreateOpportunityForm({
       }
       updateData.transaction_hash = txHash;
       
-      // Store prize distribution for bounty type
       if (opportunityType === "bounty" && formData.prizeFirst && formData.prizeSecond && formData.prizeThird) {
-        // Try to store as JSONB field (if exists)
         updateData.prize_distribution = {
           first: parseFloat(formData.prizeFirst),
           second: parseFloat(formData.prizeSecond),
           third: parseFloat(formData.prizeThird),
         };
-        // Or try separate columns if JSONB doesn't exist
         updateData.prize_first = parseFloat(formData.prizeFirst);
         updateData.prize_second = parseFloat(formData.prizeSecond);
         updateData.prize_third = parseFloat(formData.prizeThird);
@@ -221,18 +186,7 @@ export function CreateOpportunityForm({
       
       try {
         await updateOpportunity(savedOpportunity.id, updateData);
-        console.log("Contract info and prize distribution saved to database");
       } catch (updateError) {
-        // If fields don't exist in schema, log the info for manual addition
-        console.log("Note: Add contract_bounty_id, transaction_hash, and prize_distribution columns to opportunities table");
-        console.log("Contract Bounty ID:", contractBountyId ? String(contractBountyId) : "Not found");
-        console.log("Transaction Hash:", txHash);
-        console.log("Prize Distribution:", opportunityType === "bounty" ? {
-          first: formData.prizeFirst,
-          second: formData.prizeSecond,
-          third: formData.prizeThird,
-        } : "N/A");
-        console.log("Saved Opportunity ID:", savedOpportunity.id);
       }
 
       toast.success("Opportunity created successfully! 🎉", {
@@ -240,8 +194,6 @@ export function CreateOpportunityForm({
       });
       onSuccess?.();
     } catch (error: unknown) {
-      console.error("Error saving opportunity to database:", error);
-      console.error("Error details:", error instanceof Error ? error.stack : error);
       const errorMessage =
         error instanceof Error ? error.message : "Please try again.";
       toast.error("Contract transaction succeeded but failed to save to database", {
@@ -252,39 +204,31 @@ export function CreateOpportunityForm({
     }
   };
 
-  // Handle contract transaction when receipt is confirmed
   useEffect(() => {
     if (isConfirmed && receipt && hash && processedTxHash.current !== hash) {
       processedTxHash.current = hash;
-      // Dismiss the loading toast
       toast.dismiss("create-bounty");
-      console.log("Transaction confirmed, calling handleContractSuccess", { hash, receipt });
       handleContractSuccess(hash, receipt);
     }
   }, [isConfirmed, receipt, hash]);
   
-  // Fallback: If transaction hash exists but receipt isn't detected after 30 seconds,
-  // allow manual processing (transaction might be confirmed but wagmi hasn't detected it)
   useEffect(() => {
     if (hash && !isConfirmed && !isConfirming && !receiptError) {
       const timeout = setTimeout(() => {
-        // Check if transaction is already processed
         if (processedTxHash.current === hash) {
           return;
         }
         
-        // Show option to manually process if transaction is confirmed on chain
         toast.info("Transaction may be confirmed. Checking status...", {
           id: "tx-timeout",
           duration: 10000,
         });
-      }, 30000); // 30 seconds
+      }, 30000);
       
       return () => clearTimeout(timeout);
     }
   }, [hash, isConfirmed, isConfirming, receiptError]);
   
-  // Handle contract errors
   useEffect(() => {
     if (contractError) {
       toast.dismiss("create-bounty");
@@ -295,13 +239,9 @@ export function CreateOpportunityForm({
     }
   }, [contractError]);
   
-  // Handle receipt errors
   useEffect(() => {
     if (receiptError) {
       toast.dismiss("create-bounty");
-      console.error("Receipt error:", receiptError);
-      // Even if receipt fetch fails, transaction might be successful
-      // Show info message
       toast.warning("Transaction may have succeeded but receipt could not be fetched", {
         description: "Please check the transaction on BSCScan and manually verify",
       });
@@ -331,7 +271,6 @@ export function CreateOpportunityForm({
     setIsSubmitting(true);
 
     try {
-      // Ensure user is on the correct network (BNB Testnet - Chain ID 97)
       const isOnCorrectNetwork = await ensureCorrectNetwork();
       
       if (!isOnCorrectNetwork) {
@@ -340,7 +279,6 @@ export function CreateOpportunityForm({
         return;
       }
 
-      // Prepare contract call parameters
       const contractDescription = `${formData.title}\n\n${formData.description}`;
       const deadlineTimestamp = Math.floor(new Date(formData.deadline).getTime() / 1000);
       const contractCategory = mapFormCategoryToContract(
@@ -349,10 +287,8 @@ export function CreateOpportunityForm({
       );
       const stakeAmount = convertToWei(parseFloat(formData.amount), formData.currency);
 
-      // Show loading toast
       toast.loading("Preparing transaction...", { id: "create-bounty" });
 
-      // Call contract
       writeContract({
         address: blockchainBountyAddress as `0x${string}`,
         abi: blockchainBountyAbi,
@@ -363,12 +299,11 @@ export function CreateOpportunityForm({
           contractCategory,
         ],
         value: stakeAmount,
-        chainId: 97, // Explicitly set chain ID
+        chainId: 97,
       });
 
       toast.loading("Waiting for transaction confirmation...", { id: "create-bounty" });
     } catch (error: unknown) {
-      console.error("Error creating bounty on contract:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Please try again.";
       toast.error("Failed to create bounty on contract", {
@@ -379,10 +314,8 @@ export function CreateOpportunityForm({
     }
   };
 
-  // Handle contract errors
   useEffect(() => {
     if (contractError) {
-      console.error("Contract error:", contractError);
       toast.error("Transaction failed", {
         description: contractError.message || "Please try again.",
         id: "create-bounty",
@@ -406,7 +339,6 @@ export function CreateOpportunityForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Opportunity Type */}
           <div className="space-y-2">
             <Label htmlFor="type">Opportunity Type *</Label>
             <Select
@@ -428,7 +360,6 @@ export function CreateOpportunityForm({
             </Select>
           </div>
 
-          {/* Basic Information */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
@@ -487,7 +418,6 @@ export function CreateOpportunityForm({
             </div>
           </div>
 
-          {/* Type-Specific Fields */}
           {opportunityType === "bounty" && (
             <div className="space-y-2">
               <Label htmlFor="category">Bounty Category *</Label>
@@ -589,7 +519,6 @@ export function CreateOpportunityForm({
             </div>
           )}
 
-          {/* Compensation */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Compensation</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -777,7 +706,6 @@ export function CreateOpportunityForm({
             </Select>
           </div>
 
-          {/* Tags */}
           <div className="space-y-2">
             <Label htmlFor="tags">Tags</Label>
             <div className="flex gap-2">

@@ -31,7 +31,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     try {
       let dbUser = await getUserByPrivyId(privyUser.id);
 
-      // Create user if doesn't exist
       if (!dbUser) {
         dbUser = await createUser({
           privy_id: privyUser.id,
@@ -39,7 +38,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           wallet_address: privyUser.wallet?.address,
         });
       } else {
-        // If user exists but doesn't have name or avatar, generate them
         if (!dbUser.name || !dbUser.avatar_url) {
           const { generateRandomUsername, generateAvatarUrl } = await import("@/lib/utils");
           
@@ -76,7 +74,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       setUser(dbUser);
     } catch (error) {
-      console.error("Error fetching user:", error);
     } finally {
       setLoading(false);
     }

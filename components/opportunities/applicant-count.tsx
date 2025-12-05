@@ -18,7 +18,6 @@ interface ApplicantCountProps {
 export function ApplicantCount({ opportunity, className }: ApplicantCountProps) {
   const contractBountyId = opportunity.contract_bounty_id;
 
-  // Get submission count from contract if available
   const { data: submissionCount } = useReadContract({
     address: blockchainBountyAddress as `0x${string}`,
     abi: blockchainBountyAbi,
@@ -29,7 +28,6 @@ export function ApplicantCount({ opportunity, className }: ApplicantCountProps) 
     },
   });
 
-  // Use on-chain count if available, otherwise fall back to database count
   const count = contractBountyId && submissionCount !== undefined
     ? typeof submissionCount === 'bigint'
       ? Number(submissionCount)

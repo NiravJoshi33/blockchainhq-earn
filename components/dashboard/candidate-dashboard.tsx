@@ -66,22 +66,18 @@ export function CandidateDashboard() {
       setLoadingStats(true);
 
       try {
-        // Fetch statistics
         const walletAddress = user?.wallet_address || wallets?.[0]?.address;
         if (walletAddress) {
           const stats = await getUserStatistics(walletAddress);
           setUserStats(stats);
         }
 
-        // Fetch applications
         const apps = await getUserApplications(user.id);
         setApplications(apps || []);
 
-        // Fetch saved opportunities
         const saved = await getSavedOpportunities(user.id);
         setSavedOpportunities(saved || []);
 
-        // Fetch recommended opportunities based on user skills
         if (user.skills && user.skills.length > 0) {
           const allOpps = await getOpportunities({ status: "active" });
           const recommended = allOpps
@@ -98,7 +94,6 @@ export function CandidateDashboard() {
           setRecommendedOpportunities(recommended);
         }
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
       } finally {
         setLoadingData(false);
         setLoadingStats(false);
@@ -110,7 +105,6 @@ export function CandidateDashboard() {
     }
   }, [user, wallets]);
 
-  // Calculate stats from real data
   const activeApplications = applications.filter(
     (app) => app.status === "pending" || app.status === "reviewing"
   ).length;
@@ -133,12 +127,10 @@ export function CandidateDashboard() {
     submissions: userStats?.submissions || 0,
   };
 
-  // Get recent applications (active ones)
   const recentApplications = applications
     .filter((app) => app.status === "pending" || app.status === "reviewing")
     .slice(0, 5);
 
-  // Get saved opportunities (extract opportunity from saved_opportunities)
   const savedOppsList = savedOpportunities
     .slice(0, 5)
     .map((saved) => saved.opportunity)
@@ -162,7 +154,6 @@ export function CandidateDashboard() {
 
   return (
     <div className="container mx-auto py-8 max-w-7xl space-y-8">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Welcome back, {userData.name}!</h1>
@@ -178,7 +169,6 @@ export function CandidateDashboard() {
         </Link>
       </div>
 
-      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -259,7 +249,6 @@ export function CandidateDashboard() {
         </Card>
       </div>
 
-      {/* Profile Completion Alert */}
       <Card className="border-yellow-500/20 bg-yellow-500/5">
         <CardContent className="flex items-center justify-between p-6">
           <div className="flex items-center gap-4">
@@ -277,9 +266,7 @@ export function CandidateDashboard() {
         </CardContent>
       </Card>
 
-      {/* Main Content with Tabs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Applications & Saved */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
@@ -499,9 +486,7 @@ export function CandidateDashboard() {
           </Card>
         </div>
 
-        {/* Right Column - Recommendations & Activity */}
         <div className="space-y-6">
-          {/* Recommended for You */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -563,7 +548,6 @@ export function CandidateDashboard() {
             </CardContent>
           </Card>
 
-          {/* Recent Activity */}
           <Card>
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
@@ -608,7 +592,6 @@ export function CandidateDashboard() {
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
           <Card>
             <CardHeader>
               <CardTitle>This Month</CardTitle>

@@ -42,7 +42,6 @@ export function useNetworkSwitch() {
       setIsCorrectNetwork(true);
       return true;
     } catch (error: any) {
-      console.error("Error switching network:", error);
       
       // Handle user rejection
       if (error?.code === 4001 || error?.message?.includes("rejected")) {

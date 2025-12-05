@@ -56,7 +56,6 @@ export default function OpportunityDetailPage() {
   const [showSelectWinnersModal, setShowSelectWinnersModal] = useState(false);
   const [selectedWinners, setSelectedWinners] = useState<Array<{ submissionId: number; rank: number; percentage: number }>>([]);
 
-  // Contract interaction hooks for submission
   const { 
     writeContract: writeSubmit, 
     data: submitHash, 
@@ -70,11 +69,8 @@ export default function OpportunityDetailPage() {
     hash: submitHash,
   });
 
-  // Contract interaction hooks for withdrawal
   const { writeContract: writeRefund, data: refundHash, isPending: isRefundPending } = useWriteContract();
   const { writeContract: writeCancel, data: cancelHash, isPending: isCancelPending } = useWriteContract();
-  
-  // Contract interaction hooks for winner selection
   const { 
     writeContract: writeSelectWinners, 
     data: selectWinnersHash, 
@@ -94,11 +90,9 @@ export default function OpportunityDetailPage() {
     hash: cancelHash,
   });
 
-  // Check if user is the creator
   const isCreator = user?.id === opportunity?.sponsor_id;
   const contractBountyId = (opportunity as any)?.contract_bounty_id;
 
-  // Read contract to check if bounty has submissions and if it's closed
   const { data: bountyData } = useReadContract({
     address: blockchainBountyAddress as `0x${string}`,
     abi: blockchainBountyAbi,
@@ -109,7 +103,6 @@ export default function OpportunityDetailPage() {
     },
   });
 
-  // Get submission count
   const { data: submissionCount } = useReadContract({
     address: blockchainBountyAddress as `0x${string}`,
     abi: blockchainBountyAbi,
@@ -122,7 +115,6 @@ export default function OpportunityDetailPage() {
 
   const publicClient = usePublicClient();
 
-  // Fetch all submissions
   useEffect(() => {
     async function fetchSubmissions() {
       if (!contractBountyId || !submissionCount || !publicClient) return;
@@ -188,13 +180,11 @@ export default function OpportunityDetailPage() {
         
         setSubmissions(formattedSubmissions);
         
-        // Fetch user information for each submitter
         const userPromises = formattedSubmissions.map(async (submission) => {
           try {
             const user = await getUserByWalletAddress(submission.submitter);
             return { address: submission.submitter.toLowerCase(), user };
           } catch (error) {
-            console.error(`Error fetching user for ${submission.submitter}:`, error);
             return { address: submission.submitter.toLowerCase(), user: null };
           }
         });
@@ -206,7 +196,6 @@ export default function OpportunityDetailPage() {
         });
         setSubmissionUsers(usersMap);
       } catch (error) {
-        console.error("Error fetching submissions:", error);
       } finally {
         setLoadingSubmissions(false);
       }
@@ -215,13 +204,11 @@ export default function OpportunityDetailPage() {
     fetchSubmissions();
   }, [contractBountyId, submissionCount, publicClient]);
 
-  // Check if bounty is closed (funds have been withdrawn)
   const isBountyClosed = useMemo(() => {
     if (!bountyData) return false;
     
-    // getBounty returns: (id, creator, stakeAmount, deadline, description, category, isActive, isClosed, totalSubmissions)
     if (Array.isArray(bountyData)) {
-      return bountyData[7] === true; // isClosed is at index 7
+      return bountyData[7] === true;
     } else if (typeof bountyData === 'object' && 'isClosed' in bountyData) {
       return bountyData.isClosed === true;
     }
@@ -234,7 +221,6 @@ export default function OpportunityDetailPage() {
         const data = await getOpportunityById(params.id as string);
         setOpportunity(data);
       } catch (error) {
-        console.error("Error:", error);
       } finally {
         setLoading(false);
       }
@@ -242,19 +228,15 @@ export default function OpportunityDetailPage() {
     fetchOpportunity();
   }, [params.id]);
 
-  // Handle successful submission
   useEffect(() => {
     async function handleSubmissionSuccess() {
       if (isSubmitConfirmed && submitHash) {
-        // Get wallet address from the connected wallet
         const walletAddress = wallets[0]?.address;
         
         if (walletAddress) {
           try {
-            // Check if user exists by wallet address
             let dbUser = await getUserByWalletAddress(walletAddress);
             
-            // If user doesn't exist, create them
             if (!dbUser) {
               dbUser = await createUser({
                 privy_id: privyUser?.id,
@@ -262,23 +244,14 @@ export default function OpportunityDetailPage() {
                 wallet_address: walletAddress,
                 role: "hunter",
               });
-              console.log("User created in database:", dbUser);
             } else if (dbUser && !dbUser.wallet_address) {
-              // Update existing user with wallet address if missing
               const { updateUserProfile } = await import("@/lib/supabase/services/users");
-              // Note: updateUserProfile doesn't support wallet_address, so we'll update directly
               const { error: updateError } = await supabase
                 .from("users")
                 .update({ wallet_address: walletAddress.toLowerCase() })
                 .eq("id", dbUser.id);
-              
-              if (!updateError) {
-                console.log("Updated user with wallet address");
-              }
             }
           } catch (error) {
-            console.error("Error saving user to database:", error);
-            // Don't block the success message if user creation fails
           }
         }
         
@@ -296,25 +269,14 @@ export default function OpportunityDetailPage() {
           projectLink: "",
         });
         setIsSubmitting(false);
-        
-        // Refresh submissions to show the new one
-        if (contractBountyId && submissionCount !== undefined) {
-          // Trigger a refetch by updating a dependency
-          const count = typeof submissionCount === 'bigint' 
-            ? Number(submissionCount) 
-            : Number(submissionCount);
-          // The useEffect will refetch when submissionCount changes
-        }
       }
     }
     
     handleSubmissionSuccess();
   }, [isSubmitConfirmed, submitHash, wallets, privyUser, contractBountyId, submissionCount]);
 
-  // Handle submission errors
   useEffect(() => {
     if (submitError) {
-      console.error("Submit error:", submitError);
       toast.error("Failed to submit work", {
         description: submitError.message || "Please try again",
         id: "submit-work",
@@ -323,10 +285,8 @@ export default function OpportunityDetailPage() {
     }
   }, [submitError]);
 
-  // Handle receipt errors
   useEffect(() => {
     if (submitReceiptError) {
-      console.error("Submit receipt error:", submitReceiptError);
       toast.error("Transaction failed", {
         description: submitReceiptError.message || "Please try again",
         id: "submit-work",
@@ -335,7 +295,6 @@ export default function OpportunityDetailPage() {
     }
   }, [submitReceiptError]);
 
-  // Handle successful refund
   useEffect(() => {
     if (isRefundConfirmed && refundHash) {
       toast.success("Funds withdrawn successfully! 🎉", {
@@ -345,7 +304,6 @@ export default function OpportunityDetailPage() {
     }
   }, [isRefundConfirmed, refundHash]);
 
-  // Handle successful cancel
   useEffect(() => {
     if (isCancelConfirmed && cancelHash) {
       toast.success("Bounty cancelled and funds withdrawn! 🎉", {
@@ -355,10 +313,8 @@ export default function OpportunityDetailPage() {
     }
   }, [isCancelConfirmed, cancelHash]);
 
-  // Handle winner selection errors
   useEffect(() => {
     if (selectWinnersError) {
-      console.error("Select winners error:", selectWinnersError);
       toast.error("Failed to select winners", {
         description: selectWinnersError.message || "Please try again",
         id: "select-winners",
@@ -367,10 +323,8 @@ export default function OpportunityDetailPage() {
     }
   }, [selectWinnersError]);
 
-  // Handle winner selection receipt errors
   useEffect(() => {
     if (selectWinnersReceiptError) {
-      console.error("Select winners receipt error:", selectWinnersReceiptError);
       toast.error("Transaction failed", {
         description: selectWinnersReceiptError.message || "Please try again",
         id: "select-winners",
@@ -379,7 +333,6 @@ export default function OpportunityDetailPage() {
     }
   }, [selectWinnersReceiptError]);
 
-  // Handle successful winner selection
   useEffect(() => {
     if (isSelectWinnersConfirmed && selectWinnersHash) {
       toast.dismiss("select-winners");
@@ -389,11 +342,7 @@ export default function OpportunityDetailPage() {
       setShowSelectWinnersModal(false);
       setSelectedWinners([]);
       setIsSubmitting(false);
-      // Refresh submissions to show winner status
-      // Force refetch by updating a state that triggers the useEffect
       if (contractBountyId && submissionCount !== undefined) {
-        // The useEffect will refetch when submissionCount changes
-        // We can also manually trigger a refetch
         const fetchSubmissions = async () => {
           if (!publicClient) return;
           const count = typeof submissionCount === 'bigint' 
@@ -450,7 +399,6 @@ export default function OpportunityDetailPage() {
             });
             setSubmissions(formattedSubmissions);
           } catch (error) {
-            console.error("Error refreshing submissions:", error);
           }
         };
         fetchSubmissions();
@@ -460,12 +408,6 @@ export default function OpportunityDetailPage() {
 
   const handleSubmitWork = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    
-    console.log("handleSubmitWork called", {
-      authenticated,
-      contractBountyId,
-      submissionData,
-    });
 
     if (!authenticated) {
       toast.error("Please connect your wallet first");
@@ -477,7 +419,6 @@ export default function OpportunityDetailPage() {
       return;
     }
 
-    // Validate required fields
     if (!submissionData.submissionLink || !submissionData.githubLink || 
         !submissionData.twitterLink || !submissionData.videoLink || 
         !submissionData.indieFunLink) {
@@ -496,21 +437,6 @@ export default function OpportunityDetailPage() {
       }
 
       toast.loading("Submitting work...", { id: "submit-work" });
-
-      console.log("Calling writeSubmit with:", {
-        address: blockchainBountyAddress,
-        functionName: "submitWork",
-        args: [
-          BigInt(contractBountyId),
-          submissionData.submissionLink,
-          submissionData.tweetLink || "",
-          submissionData.githubLink,
-          submissionData.twitterLink,
-          submissionData.videoLink,
-          submissionData.indieFunLink,
-          submissionData.projectLink || "",
-        ],
-      });
 
       writeSubmit({
         address: blockchainBountyAddress as `0x${string}`,
@@ -531,7 +457,6 @@ export default function OpportunityDetailPage() {
 
       toast.loading("Waiting for transaction confirmation...", { id: "submit-work" });
     } catch (error: any) {
-      console.error("Error submitting work:", error);
       toast.error("Failed to submit work", {
         description: error?.message || "Please try again",
         id: "submit-work",
@@ -561,7 +486,6 @@ export default function OpportunityDetailPage() {
       return;
     }
 
-    // Validate prize distribution sums to 100%
     const totalPercentage = selectedWinners.reduce((sum, w) => sum + w.percentage, 0);
     if (totalPercentage !== 100) {
       toast.error("Prize distribution must sum to 100%");
@@ -578,11 +502,8 @@ export default function OpportunityDetailPage() {
         return;
       }
 
-      // Prepare arrays for contract call
       const submissionIds = selectedWinners.map(w => BigInt(w.submissionId));
       const ranks = selectedWinners.map(w => w.rank as 1 | 2 | 3);
-      // Convert percentages to basis points (100% = 10000 basis points)
-      // Example: 50% = 5000 basis points, 30% = 3000 basis points
       const prizeDistribution = selectedWinners.map(w => BigInt(Math.round(w.percentage * 100)));
 
       toast.loading("Selecting winners and distributing prizes...", { id: "select-winners" });
@@ -602,7 +523,6 @@ export default function OpportunityDetailPage() {
 
       toast.loading("Waiting for transaction confirmation...", { id: "select-winners" });
     } catch (error: any) {
-      console.error("Error selecting winners:", error);
       toast.error("Failed to select winners", {
         description: error?.message || "Please try again",
         id: "select-winners",
@@ -637,12 +557,8 @@ export default function OpportunityDetailPage() {
         return;
       }
 
-      // Check if there are submissions
-      // getBounty returns a struct: (id, creator, stakeAmount, deadline, description, category, isActive, isClosed, totalSubmissions)
-      // wagmi returns it as an array or object, so we need to handle both
       let totalSubmissions = BigInt(0);
       if (bountyData) {
-        // Handle both array and object formats
         if (Array.isArray(bountyData)) {
           totalSubmissions = bountyData[8] || BigInt(0);
         } else if (typeof bountyData === 'object' && 'totalSubmissions' in bountyData) {
@@ -651,7 +567,6 @@ export default function OpportunityDetailPage() {
       }
 
       if (totalSubmissions === BigInt(0)) {
-        // Use refundBounty if no submissions
         toast.loading("Withdrawing funds...", { id: "withdraw" });
         writeRefund({
           address: blockchainBountyAddress as `0x${string}`,
@@ -661,7 +576,6 @@ export default function OpportunityDetailPage() {
           chainId: 97,
         });
       } else {
-        // Use cancelBounty if there are submissions but no winners
         toast.loading("Cancelling bounty and withdrawing funds...", { id: "withdraw" });
         writeCancel({
           address: blockchainBountyAddress as `0x${string}`,
@@ -672,7 +586,6 @@ export default function OpportunityDetailPage() {
         });
       }
     } catch (error: any) {
-      console.error("Error withdrawing funds:", error);
       toast.error("Failed to withdraw funds", {
         description: error?.message || "Please try again",
         id: "withdraw",
@@ -711,7 +624,6 @@ export default function OpportunityDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Header */}
       <div className="border-b bg-muted/30">
         <div className="container mx-auto py-8 max-w-5xl">
           <div className="flex items-start justify-between gap-6">
@@ -739,7 +651,6 @@ export default function OpportunityDetailPage() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="container mx-auto py-8 max-w-5xl space-y-8">
         <OpportunityContentCard 
           title="Overview" 

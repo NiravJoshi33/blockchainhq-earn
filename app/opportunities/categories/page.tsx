@@ -33,7 +33,6 @@ export default function CategoriesPage() {
 
   const { bountyIds, isLoading: isLoadingBounties } = useActiveBountiesByCategory(selectedCategory);
 
-  // Initialize counts to 0 for all categories
   useEffect(() => {
     const initialCounts: Record<number, number> = {};
     Object.values(ContractBountyCategory)
@@ -44,7 +43,6 @@ export default function CategoriesPage() {
     setCategoryCounts(initialCounts);
   }, []);
 
-  // Fetch opportunities from database that match the on-chain bounty IDs
   useEffect(() => {
     async function fetchOpportunities() {
       if (!bountyIds || bountyIds.length === 0) {
@@ -55,10 +53,8 @@ export default function CategoriesPage() {
 
       try {
         setLoading(true);
-        // Get all opportunities from database
         const allOpportunities = await getOpportunities({ status: "active" });
         
-        // Filter to only those that have matching contract_bounty_id
         const matchingOpportunities = allOpportunities.filter((opp) => {
           const contractBountyId = (opp as any).contract_bounty_id;
           if (!contractBountyId) return false;
@@ -68,13 +64,11 @@ export default function CategoriesPage() {
 
         setOpportunities(matchingOpportunities);
         
-        // Update count for this category
         setCategoryCounts(prev => ({
           ...prev,
           [selectedCategory]: matchingOpportunities.length
         }));
       } catch (error) {
-        console.error("Error fetching opportunities:", error);
       } finally {
         setLoading(false);
       }
@@ -87,7 +81,6 @@ export default function CategoriesPage() {
 
   return (
     <div className="container mx-auto py-8 max-w-7xl space-y-6">
-      {/* Header */}
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">Browse by Category</h1>
         <p className="text-muted-foreground">
@@ -95,7 +88,6 @@ export default function CategoriesPage() {
         </p>
       </div>
 
-      {/* Category Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {Object.values(ContractBountyCategory)
           .filter((cat) => typeof cat === "number")
@@ -108,7 +100,6 @@ export default function CategoriesPage() {
           ))}
       </div>
 
-      {/* Category Tabs */}
       <Tabs
         value={selectedCategory.toString()}
         onValueChange={(value) => setSelectedCategory(Number(value) as ContractBountyCategory)}

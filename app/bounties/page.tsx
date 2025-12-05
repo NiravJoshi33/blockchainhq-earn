@@ -6,13 +6,11 @@ import type { Database } from "@/lib/supabase/database.types";
 type OpportunityRow = Database["public"]["Tables"]["opportunities"]["Row"];
 
 async function getData(): Promise<Bounty[]> {
-  // Fetch only bounty-type opportunities that are active
   const opportunities = await getOpportunities({ 
     status: "active",
     type: "bounty"
   });
 
-  // Transform to Bounty format
   return opportunities.map((opp: OpportunityRow) => ({
     id: opp.id,
     title: opp.title,

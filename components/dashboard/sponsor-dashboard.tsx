@@ -35,7 +35,6 @@ export function SponsorDashboard() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [opportunities, setOpportunities] = useState<any[]>([]);
 
-  // Fetch real statistics
   useEffect(() => {
     async function fetchStats() {
       if (!user?.id) return;
@@ -45,11 +44,9 @@ export function SponsorDashboard() {
         const sponsorStats = await getSponsorStatistics(user.id);
         setStats(sponsorStats);
         
-        // Also fetch opportunities
         const opps = await getOpportunitiesBySponsor(user.id);
         setOpportunities(opps || []);
       } catch (error) {
-        console.error("Error fetching sponsor statistics:", error);
       } finally {
         setLoadingStats(false);
       }
@@ -60,7 +57,6 @@ export function SponsorDashboard() {
     }
   }, [user]);
 
-  // Use real stats if available, otherwise fall back to mock data
   const activeOpportunities = stats?.activeOpportunities ?? mockOpportunities.filter(
     (o) => o.status === "active"
   ).length;
@@ -95,7 +91,6 @@ export function SponsorDashboard() {
 
   return (
     <div className="container mx-auto py-8 max-w-7xl space-y-8">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Sponsor Dashboard</h1>
@@ -227,7 +222,6 @@ export function SponsorDashboard() {
         </CardContent>
       </Card>
 
-      {/* Opportunities Management */}
       <Card>
         <CardHeader>
           <CardTitle>Your Opportunities</CardTitle>

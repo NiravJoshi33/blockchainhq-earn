@@ -25,7 +25,6 @@ export default function OpportunitiesPage() {
   const [allOpportunities, setAllOpportunities] = useState<OpportunityRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all opportunities for stats (only once)
   useEffect(() => {
     async function fetchAllOpportunities() {
       try {
@@ -34,13 +33,11 @@ export default function OpportunitiesPage() {
         });
         setAllOpportunities(data || []);
       } catch (error) {
-        console.error("Error fetching all opportunities:", error);
       }
     }
     fetchAllOpportunities();
   }, []);
 
-  // Fetch filtered opportunities based on selected type
   useEffect(() => {
     async function fetchOpportunities() {
       try {
@@ -51,7 +48,6 @@ export default function OpportunitiesPage() {
         });
         setOpportunities(data || []);
       } catch (error) {
-        console.error("Error fetching opportunities:", error);
       } finally {
         setLoading(false);
       }
@@ -73,7 +69,6 @@ export default function OpportunitiesPage() {
       ? opportunities
       : opportunities.filter((o) => o.type === selectedType);
 
-  // Calculate stats from all opportunities, not filtered ones
   const stats = {
     all: allOpportunities.length,
     bounty: allOpportunities.filter((o) => o.type === "bounty").length,
@@ -85,7 +80,6 @@ export default function OpportunitiesPage() {
 
   return (
     <div className="container mx-auto py-8 max-w-7xl space-y-6">
-      {/* Header */}
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">Discover Opportunities</h1>
         <p className="text-muted-foreground">
@@ -95,7 +89,6 @@ export default function OpportunitiesPage() {
         </p>
       </div>
 
-      {/* Tabs for Opportunity Types */}
       <Tabs
         value={selectedType}
         onValueChange={handleTabChange}

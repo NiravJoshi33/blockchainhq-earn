@@ -5,7 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Generate a random username
 export function generateRandomUsername(): string {
   const adjectives = [
     "swift", "bright", "bold", "cool", "sharp", "quick", "smart", "brave",
@@ -28,10 +27,8 @@ export function generateRandomUsername(): string {
   return `${randomAdjective}-${randomNoun}-${randomNumber}`;
 }
 
-// Generate avatar URL using UI Avatars (or DiceBear)
 export function generateAvatarUrl(name?: string, size: number = 200): string {
   if (name) {
-    // Use UI Avatars with initials (returns PNG)
     const initials = name
       .split(" ")
       .map((n) => n[0])
@@ -42,32 +39,23 @@ export function generateAvatarUrl(name?: string, size: number = 200): string {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&size=${size}&background=random&color=fff&bold=true&format=png`;
   }
   
-  // Fallback: use DiceBear with random seed (use PNG format instead of SVG)
   const randomSeed = Math.random().toString(36).substring(7);
   return `https://api.dicebear.com/7.x/avataaars/png?seed=${randomSeed}&size=${size}`;
 }
 
-/**
- * Format a date as relative time (e.g., "just now", "1 min ago", "1 hour ago", "1 day ago")
- * @param date - Date string, Date object, or timestamp number
- * @returns Formatted relative time string
- */
 export function formatTimeAgo(date: string | Date | number | null | undefined): string {
   if (!date) return "Unknown";
   
   let dateObj: Date;
   
-  // Handle different input types
   if (typeof date === "string") {
     dateObj = new Date(date);
   } else if (typeof date === "number") {
-    // If it's a timestamp in seconds (Unix timestamp), convert to milliseconds
     dateObj = date < 10000000000 ? new Date(date * 1000) : new Date(date);
   } else {
     dateObj = date;
   }
   
-  // Check if date is valid
   if (isNaN(dateObj.getTime())) {
     return "Unknown";
   }
