@@ -41,3 +41,31 @@ export async function updateUserRole(
   if (error) throw error;
   return data;
 }
+
+export async function updateUserProfile(
+  userId: string,
+  profileData: {
+    name?: string;
+    email?: string;
+    bio?: string;
+    github_url?: string | null;
+    twitter_url?: string | null;
+    portfolio_url?: string | null;
+    avatar_url?: string | null;
+    skills?: string[] | null;
+    profile_data?: Record<string, any> | null; // JSON field for additional data
+  }
+) {
+  const { data, error } = await supabase
+    .from("users")
+    .update({
+      ...profileData,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}

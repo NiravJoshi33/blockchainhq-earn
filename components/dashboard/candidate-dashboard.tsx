@@ -202,7 +202,9 @@ export function CandidateDashboard() {
               </p>
             </div>
           </div>
-          <Button variant="outline">Complete Profile</Button>
+          <Link href="/profile">
+            <Button variant="outline">Complete Profile</Button>
+          </Link>
         </CardContent>
       </Card>
 
