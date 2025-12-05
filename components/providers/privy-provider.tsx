@@ -19,6 +19,7 @@ const wagmiConfig = createConfig({
     [opBNB.id]: http(),
     [opBNBTestnet.id]: http(),
   },
+  ssr: true,
 });
 
 function PrivyWrapper({ children }: { children: React.ReactNode }) {
