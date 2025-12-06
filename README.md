@@ -199,6 +199,100 @@ Matched candidates receive personalized Telegram messages with opportunity detai
 7. Contract automatically distributes prizes to winners
 8. All participants notified of results
 
+### User Journey
+
+#### Sponsor Journey
+
+```
+┌─────────────┐
+│   Sign Up   │ Connect wallet with Privy
+│  & Profile  │ → Select "Sponsor" role
+└──────┬──────┘
+       │
+       ▼
+┌─────────────┐
+│   Create    │ Fill opportunity details (title, description, skills)
+│ Opportunity │ → Set deadline & reward amount
+└──────┬──────┘ → Lock funds in smart contract (BNB Chain)
+       │
+       ▼
+┌─────────────┐
+│ AI Matching │ System analyzes candidate profiles (GPT-4)
+│  & Notify   │ → Top matches identified (70%+ score)
+└──────┬──────┘ → Personalized Telegram notifications sent
+       │
+       ▼
+┌─────────────┐
+│   Review    │ View all submissions in dashboard
+│ Submissions │ → Check GitHub repos, demos, videos
+└──────┬──────┘ → Compare candidate work
+       │
+       ▼
+┌─────────────┐
+│   Select    │ Choose 1-3 winners with custom split
+│   Winners   │ → Sign transaction on BNB Chain
+└──────┬──────┘ → Smart contract auto-distributes prizes
+       │
+       ▼
+┌─────────────┐
+│  Complete   │ Bounty closed on-chain
+│   & Track   │ → Dashboard updated with stats
+└─────────────┘ → Winners announced
+```
+
+#### Hunter Journey
+
+```
+┌─────────────┐
+│   Sign Up   │ Connect wallet with Privy
+│  & Profile  │ → Select "Hunter" role
+└──────┬──────┘ → Add skills, bio, Telegram ID
+       │
+       ▼
+┌─────────────┐
+│  Discover   │ Browse opportunities by category
+│Opportunities│ → Filter by type (job/bounty/hackathon)
+└──────┬──────┘ → View on-chain escrow amount
+       │         OR
+       │         Receive Telegram notification (AI-matched)
+       ▼
+┌─────────────┐
+│    View     │ Read full description & requirements
+│  Opportunity│ → Check deadline & prize distribution
+└──────┬──────┘ → See # of submissions (competition)
+       │
+       ▼
+┌─────────────┐
+│   Submit    │ Upload work links (GitHub, demo, video)
+│    Work     │ → Add project details & description
+└──────┬──────┘ → Sign transaction on BNB Chain
+       │
+       ▼
+┌─────────────┐
+│    Wait     │ Sponsor reviews all submissions
+│  & Track    │ → Track status in dashboard
+└──────┬──────┘ → Deadline passes
+       │
+       ▼
+┌─────────────┐
+│   Result    │ Winners announced
+│  & Payment  │ → If selected: Receive prize automatically
+└─────────────┘ → On-chain payment via smart contract
+                → Reputation score updated
+```
+
+#### Key Touchpoints
+
+| Stage                    | User Action                       | System Response                                        | Time     |
+| ------------------------ | --------------------------------- | ------------------------------------------------------ | -------- |
+| **Registration**         | Connect wallet + complete profile | User record created in Supabase                        | < 2 min  |
+| **Opportunity Creation** | Submit form + lock funds          | Smart contract records bounty + AI matching starts     | 3-5 min  |
+| **AI Matching**          | (Automatic)                       | GPT-4 analyzes profiles + sends Telegram notifications | 2-10 min |
+| **Submission**           | Upload work links + sign tx       | Recorded on-chain + visible to sponsor                 | 5-15 min |
+| **Review**               | Sponsor evaluates submissions     | Dashboard shows all entries                            | Variable |
+| **Winner Selection**     | Select winners + sign tx          | Smart contract auto-distributes prizes                 | < 2 min  |
+| **Payment**              | (Automatic)                       | Funds sent directly to winner wallets                  | Instant  |
+
 ---
 
 ## Smart Contract
