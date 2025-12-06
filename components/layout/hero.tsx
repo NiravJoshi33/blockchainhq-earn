@@ -11,7 +11,7 @@ const Hero = () => {
       <div className="flex flex-col items-start justify-center max-w-xl">
         <h1 className="text-6xl font-bold">
           <span className="text-brand">Earning Opportunities</span> <br />
-          for Web3 Builders
+          in Web3
         </h1>
 
         <p className="text-lg text-muted-foreground">
