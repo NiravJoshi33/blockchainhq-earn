@@ -7,6 +7,7 @@ import { getOpportunities } from "@/lib/supabase/services/opportunities";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { OpportunityType } from "@/lib/types/opportunities";
 import type { Database } from "@/lib/supabase/database.types";
+import { Loader2 } from "lucide-react";
 
 type OpportunityRow = Database["public"]["Tables"]["opportunities"]["Row"];
 
@@ -22,7 +23,9 @@ export default function OpportunitiesPage() {
       : "all";
 
   const [opportunities, setOpportunities] = useState<OpportunityRow[]>([]);
-  const [allOpportunities, setAllOpportunities] = useState<OpportunityRow[]>([]);
+  const [allOpportunities, setAllOpportunities] = useState<OpportunityRow[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,8 +35,7 @@ export default function OpportunitiesPage() {
           status: "active",
         });
         setAllOpportunities(data || []);
-      } catch (error) {
-      }
+      } catch (error) {}
     }
     fetchAllOpportunities();
   }, []);
@@ -123,7 +125,10 @@ export default function OpportunitiesPage() {
 
         <TabsContent value={selectedType} className="space-y-4">
           {loading ? (
-            <div className="text-center py-12">Loading opportunities...</div>
+            <div className="text-center py-12 flex flex-row items-center justify-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <p className="text-muted-foreground">Loading opportunities...</p>
+            </div>
           ) : (
             <OpportunitiesListingTable opportunities={filteredOpportunities} />
           )}
