@@ -117,7 +117,7 @@ Matched candidates receive personalized Telegram messages with opportunity detai
 - **Deployment:** Hardhat + Hardhat Ignition
 - **Network:** BNB Chain Testnet (Chain ID: 97)
 - **Wallet Integration:** Privy + Wagmi + Viem
-- **Contract Address:** `0x36B1Fb92fD2b62C028Cf2C5A5065f66Ffb6E8689`
+- **Contract Address:** `0x70e2FC2Ff60717aA2B529352f45b13E4AdB84c5A`
 
 ### Frontend
 
@@ -208,7 +208,7 @@ Matched candidates receive personalized Telegram messages with opportunity detai
 **Contract Name:** BlockchainBounty  
 **Compiler Version:** Solidity 0.8.28  
 **Network:** BNB Chain Testnet (Chain ID: 97)  
-**Address:** `0x36B1Fb92fD2b62C028Cf2C5A5065f66Ffb6E8689`  
+**Address:** `0x70e2FC2Ff60717aA2B529352f45b13E4AdB84c5A`  
 **License:** UNLICENSED  
 **Verified:** [Add BSCScan link]
 
@@ -392,7 +392,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
 
 # Smart Contract
-NEXT_PUBLIC_CONTRACT_ADDRESS=0x36B1Fb92fD2b62C028Cf2C5A5065f66Ffb6E8689
+NEXT_PUBLIC_CONTRACT_ADDRESS=0x70e2FC2Ff60717aA2B529352f45b13E4AdB84c5A
 NEXT_PUBLIC_CHAIN_ID=97
 
 # OpenAI Configuration
