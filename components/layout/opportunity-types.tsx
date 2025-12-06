@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card } from "../ui/card";
 import Image from "next/image";
 
@@ -27,33 +28,38 @@ const OpportunityTypes = () => {
   ];
 
   return (
-    <section id="opportunity-types" className="w-full py-16 px-8 bg-muted/30">
+    <section id="opportunity-types" className="w-full py-16 px-8">
       <h2 className="text-4xl font-bold text-center mb-12">
         Explore <span className="text-brand">Opportunities</span>
       </h2>
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
         {types.map((type) => (
-          <Card
+          <Link
+            href={`/opportunities?type=${type.title.toLowerCase()}`}
             key={type.title}
-            className="p-6 hover:border-brand transition-all cursor-pointer"
+            className="block"
           >
-            <Image
-              src={type.image}
-              alt={type.title}
-              width={80}
-              height={80}
-              className="mb-4"
-            />
-            <h3 className="text-2xl font-bold mb-2">{type.title}</h3>
-            <p className="text-muted-foreground mb-4">{type.description}</p>
-            <div className="flex justify-between text-sm">
-              <span className="text-brand font-semibold">
-                {type.stats.count}
-              </span>
-              <span className="text-muted-foreground">{type.stats.reward}</span>
-            </div>
-          </Card>
+            <Card className="p-6 hover:border-brand transition-all cursor-pointer">
+              <Image
+                src={type.image}
+                alt={type.title}
+                width={80}
+                height={80}
+                className="mb-4"
+              />
+              <h3 className="text-2xl font-bold mb-2">{type.title}</h3>
+              <p className="text-muted-foreground mb-4">{type.description}</p>
+              <div className="flex justify-between text-sm">
+                <span className="text-brand font-semibold">
+                  {type.stats.count}
+                </span>
+                <span className="text-muted-foreground">
+                  {type.stats.reward}
+                </span>
+              </div>
+            </Card>
+          </Link>
         ))}
       </div>
     </section>
