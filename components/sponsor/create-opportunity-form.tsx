@@ -695,7 +695,6 @@ export function CreateOpportunityForm({
                     <SelectItem value="SOL">SOL</SelectItem>
                     <SelectItem value="BNB">BNB</SelectItem>
                     <SelectItem value="ETH">ETH</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

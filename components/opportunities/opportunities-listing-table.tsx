@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -32,15 +33,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   Briefcase,
-  Calendar,
   DollarSign,
-  Heart,
   MapPin,
   Search,
   Tag,
-  TrendingUp,
   Users,
   Clock,
+  Bookmark,
 } from "lucide-react";
 import { useRole } from "@/contexts/role-context";
 import Link from "next/link";
@@ -50,6 +49,25 @@ import { formatTimeAgo } from "@/lib/utils";
 interface OpportunitiesListingTableProps {
   opportunities: any[];
 }
+
+const getTokenLogo = (currency: "USDC" | "SOL" | "BNB" | "ETH") => {
+  switch (currency) {
+    case "USDC":
+      return "usdc.svg";
+
+    case "SOL":
+      return "sol.png";
+
+    case "BNB":
+      return "bnb.svg";
+
+    case "ETH":
+      return "eth.png";
+
+    default:
+      return null;
+  }
+};
 
 function OpportunityCard({ opportunity }: { opportunity: any }) {
   const { role } = useRole();
@@ -122,7 +140,7 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
 
   return (
     <Link href={`/opportunities/${opportunity.id}`} className="block">
-      <div className="flex items-start gap-6 p-6 hover:bg-accent/50 transition-colors rounded-lg group cursor-pointer">
+      <div className="flex items-start gap-6 px-6 py-2 hover:bg-accent/50 transition-colors rounded-md group cursor-pointer">
         <div className="flex-1 space-y-3">
           <div>
             <h3 className="text-lg font-semibold mb-1 group-hover:text-primary transition-colors">
@@ -181,13 +199,25 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
               <DollarSign className="h-3 w-3" />
               Reward
             </div>
-            <div className="text-lg font-bold">
-              {opportunity.amount >= 1000
-                ? `$${(opportunity.amount / 1000).toFixed(1)}k`
-                : `$${opportunity.amount}`}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {opportunity.currency}
+            <div className="flex items-center flex-row gap-2">
+              <div className="text-lg font-bold">
+                {opportunity.amount >= 1000
+                  ? `$${(opportunity.amount / 1000).toFixed(1)}k`
+                  : `$${opportunity.amount}`}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {getTokenLogo(opportunity.currency) ? (
+                  <Image
+                    src={getTokenLogo(opportunity.currency) || ""}
+                    alt={opportunity.currency}
+                    className="w-6 object-contain h-6"
+                    width={24}
+                    height={24}
+                  />
+                ) : (
+                  opportunity.currency
+                )}
+              </div>
             </div>
           </div>
 
@@ -215,7 +245,7 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
               {deadline.text.split(" ")[0]}
             </div>
             <div className="text-xs text-muted-foreground">
-              {deadline.text.includes("day")
+              {deadline.text.includes("day") && !deadline.text.includes("today")
                 ? "days"
                 : deadline.text.split(" ")[1] || ""}
             </div>
@@ -232,9 +262,9 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
                 onClick={() => setIsFavorite(!isFavorite)}
                 className="mt-2"
               >
-                <Heart
+                <Bookmark
                   className={`h-5 w-5 ${
-                    isFavorite ? "fill-red-500 text-red-500" : ""
+                    isFavorite ? "fill-brand text-brand" : ""
                   }`}
                 />
               </Button>
