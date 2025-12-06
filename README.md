@@ -4,7 +4,7 @@
 
 A decentralized platform connecting blockchain talent with opportunities through AI-powered matching and smart contract-based escrow.
 
-**Hackathon Tracks:** DeFi (Payments & Escrow) | AI (Intelligent Matching) | Regional Impact (UAE Talent Ecosystem)
+**Hackathon Tracks:** Impact | Payments | ChatAndBuild
 
 ---
 
@@ -34,17 +34,17 @@ BlockchainHQ Earn is a comprehensive platform that bridges the gap between block
 
 **Live Demo:** https://earn.blockchainhq.xyz/
 
-**Demo Video:** [Add video link]
+**Demo Video:** [Demo](https://www.veed.io/view/354eac7c-006c-4e15-b27c-5b3db787d3cc?source=Homepage&panel=share)
 
-**Presentation Deck:** [Add deck link]
+**Presentation Deck:** [Deck](https://www.canva.com/design/DAG6tmnugLk/T5hO1CL6pVVFXEH7R5dS5w/view?utm_content=DAG6tmnugLk&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h8a3946d8a2)
 
 ### Submission Artifacts
 
 - **GitHub Repository:** https://github.com/NiravJoshi33/blockchainhq-earn
 - **Live Demo:** https://earn.blockchainhq.xyz/
-- **Demo Video:** [Add video link]
-- **Presentation Deck:** [Add deck link]
-- **Tweet:** [Add tweet link with @BNBChain and #BNBHackAbuDhabi]
+- **Demo Video:** [Demo](https://www.veed.io/view/354eac7c-006c-4e15-b27c-5b3db787d3cc?source=Homepage&panel=share)
+- **Presentation Deck:** [Deck](https://www.canva.com/design/DAG6tmnugLk/T5hO1CL6pVVFXEH7R5dS5w/view?utm_content=DAG6tmnugLk&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h8a3946d8a2)
+- **Tweet:** [Tweet](https://x.com/karan_pujara/status/1997223179216167152)
 
 ---
 
@@ -303,8 +303,7 @@ Matched candidates receive personalized Telegram messages with opportunity detai
 **Compiler Version:** Solidity 0.8.28  
 **Network:** BNB Chain Testnet (Chain ID: 97)  
 **Address:** `0x70e2FC2Ff60717aA2B529352f45b13E4AdB84c5A`  
-**License:** UNLICENSED  
-**Verified:** [Add BSCScan link]
+**License:** UNLICENSED
 
 ### Core Functions
 
@@ -708,37 +707,26 @@ npx hardhat verify --network bscMainnet <CONTRACT_ADDRESS>
 - **Smart Contract:** Deployed on BNB Chain Testnet at `0x36B1Fb92fD2b62C028Cf2C5A5065f66Ffb6E8689`
 - **Transactions:** All bounty creation, submissions, and prize distributions happen on-chain
 - **Network:** Supports both BSC Testnet (Chain ID: 97) and Mainnet (Chain ID: 56)
-- **Verification:** Contract verified on BSCScan [Add link]
 
 ### Open Source
 
 - **License:** MIT
-- **Repository:** [Add GitHub link]
+- **Repository:** https://github.com/NiravJoshi33/blockchainhq-earn
 - **Documentation:** Comprehensive README and inline code comments
 - **Contributing:** Open to community contributions
 
 ### Tracks Alignment
 
-**1. DeFi (Primary Track)**
-
-- Escrow and payment system built entirely on smart contracts
-- Trustless fund locking and automatic distribution
-- Multi-winner prize splitting with custom percentages
-- Refund mechanisms for edge cases
-
-**2. AI**
-
-- OpenAI GPT-4 integration for intelligent candidate matching
-- Automated skill analysis and scoring
-- Personalized outreach message generation
-- Continuous learning from match success rates
-
-**3. Regional Impact (UAE)**
+**1. Regional Impact (UAE)**
 
 - Connects UAE developers with global Web3 opportunities
 - Supports local hackathons and events (like this one!)
 - Telegram-first approach (popular in MENA region)
 - Designed to support 42 Abu Dhabi students and alumni
+
+**2. ChatAndBuild**
+
+- Used ChatAndBuild Platform to generate complex components very quickly and used in our web app.
 
 ### Scoring Criteria Alignment
 
@@ -783,33 +771,17 @@ npx hardhat verify --network bscMainnet <CONTRACT_ADDRESS>
 
 ## Future Roadmap
 
-### Phase 1 (Q1 2025)
+For a detailed 6-month roadmap with feature-by-feature breakdown, see **[roadmap.md](./roadmap.md)**.
 
-- Launch on BNB Chain Mainnet
-- Integrate with ChatAndBuild for AI agents
-- Support APRO oracle data feeds for RWA bounties
-- Multi-chain support (Ethereum, Polygon)
+### Highlights
 
-### Phase 2 (Q2 2025)
+**Months 1-2:** BNB Mainnet deployment, enhanced profiles, real-time notifications, contract explorer
 
-- Reputation system with on-chain credentials
-- Dispute resolution mechanism
-- Team-based bounties
-- Milestone-based payments
+**Months 3-4:** Milestone payments, team bounties, reputation system, advanced search
 
-### Phase 3 (Q3 2025)
+**Months 5-6:** AI portfolio builder, smart recommendations, dispute resolution, multi-chain support
 
-- DAO governance for platform decisions
-- Native token for staking and rewards
-- Advanced analytics dashboard
-- Integration with additional LLM providers
-
-### Phase 4 (Q4 2025)
-
-- Mobile app (React Native)
-- Video interview scheduling
-- Automated code review for submissions
-- Enterprise sponsor features
+**Beyond 6 Months:** Mobile apps, video interviews, code review bot, multi-chain expansion (Polygon, Base, Arbitrum)
 
 ---
 
@@ -833,16 +805,6 @@ We welcome contributions from the community! Please see our contribution guideli
 
 ---
 
-## Team
-
-**[Add team member information]**
-
-- Team Lead: [Name] - [Role] - [GitHub/Twitter]
-- Developer: [Name] - [Role] - [GitHub/Twitter]
-- Designer: [Name] - [Role] - [GitHub/Twitter]
-
----
-
 ## Acknowledgments
 
 - BNB Chain and YZi Labs for hosting this hackathon
@@ -856,11 +818,11 @@ We welcome contributions from the community! Please see our contribution guideli
 
 ## Contact
 
-- Website: [Add URL]
-- Twitter: @BlockchainHQ
-- Telegram: [Add group link]
-- Email: team@blockchainhq.com
-- GitHub: [Add organization link]
+- Website: https://blockchainhq.xyz/
+- Twitter: @blockchainhqxyz
+- Telegram: KaranPujara
+- Email: hello@blockchainhq.xyz
+- GitHub: https://github.com/blockchain-hq
 
 ---
 
@@ -869,17 +831,6 @@ We welcome contributions from the community! Please see our contribution guideli
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
-
-## Hackathon Submission Checklist
-
-- [x] Project deployed on BNB Chain Testnet
-- [x] Smart contract verified on BSCScan
-- [x] At least 2 successful test transactions
-- [x] Open source repository with comprehensive README
-- [x] Demo video recorded
-- [x] Presentation deck created
-- [ ] Tweet posted with @BNBChain and #BNBHackAbuDhabi
-- [ ] Final submission on Luma event page
 
 **Built with dedication for BNB Chain x YZi Labs Hack Series: Abu Dhabi**
 
