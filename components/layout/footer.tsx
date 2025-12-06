@@ -15,20 +15,19 @@ const Footer = () => {
               <Image
                 src={siteData.logo}
                 alt="BlockchainHQ"
-                width={140}
-                height={140}
-                className="brightness-0 invert"
+                width={150}
+                height={150}
+                className="brightness-0 invert h-auto w-auto"
               />
             </Link>
             <p className="text-sm text-gray-300 leading-relaxed">
-              Since its inception, BlockchainHQ has helped connect talented
-              individuals with exciting blockchain opportunities at the best
-              rates.
+              BlockchainHQ Earn helps you to find the best earning opportunities
+              in the blockchain space in one place. You can earn crypto by
+              completing tasks, building projects, and more.
             </p>
+
             <p className="text-sm text-gray-300 leading-relaxed">
-              BlockchainHQ is entirely independent and free to use. Our vision
-              is to be your go-to platform that you can always count on for
-              finding and comparing blockchain opportunities.
+              As a sponsor, you can find the best talent for your projects.
             </p>
           </div>
 
