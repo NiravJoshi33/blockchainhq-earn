@@ -38,8 +38,8 @@ const Hero = () => {
           <Image
             src="/drone-race.svg"
             alt="Drone Race"
-            width={120}
-            height={120}
+            width={150}
+            height={150}
             className="animate-float opacity-50 hover:opacity-100 transition-all duration-300 hover:translate-y-1"
           />
           <h2 className="text-2xl font-medium text-muted-foreground">
@@ -54,8 +54,8 @@ const Hero = () => {
           <Image
             src="/awards.svg"
             alt="Awards"
-            width={120}
-            height={120}
+            width={150}
+            height={150}
             className="animate-float opacity-50 hover:opacity-100 transition-all duration-300 hover:translate-y-1"
           />
         </div>
@@ -64,8 +64,8 @@ const Hero = () => {
           <Image
             src="/job.svg"
             alt="Jobs"
-            width={120}
-            height={120}
+            width={150}
+            height={150}
             className="animate-float opacity-50 hover:opacity-100 transition-all duration-300 hover:translate-y-1"
           />
           <h2 className="text-2xl font-medium text-muted-foreground">Jobs</h2>
