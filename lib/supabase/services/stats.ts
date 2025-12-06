@@ -19,11 +19,11 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     const totalRewards =
       rewardsData?.reduce((sum, opp) => sum + (opp.amount || 0), 0) || 0;
 
-    // Get active opportunities count (status = 'open')
+    // Get active opportunities count (status = 'active')
     const { count: activeCount, error: activeError } = await supabase
       .from("opportunities")
       .select("*", { count: "exact", head: true })
-      .eq("status", "open");
+      .eq("status", "active");
 
     if (activeError) throw activeError;
 
