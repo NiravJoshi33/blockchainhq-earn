@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,10 +29,25 @@ import type {
   DifficultyLevel,
 } from "@/lib/types/opportunities";
 import { useUser } from "@/contexts/user-context";
-import { createOpportunity } from "@/lib/supabase/services/opportunities";
+import {
+  createOpportunity,
+  updateOpportunity,
+} from "@/lib/supabase/services/opportunities";
 import type { Database } from "@/lib/supabase/database.types";
 import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
+import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import {
+  blockchainBountyAddress,
+  blockchainBountyAbi,
+} from "@/components/providers/contract-abi";
+import {
+  mapFormCategoryToContract,
+  convertToWei,
+  getBountyIdFromReceipt,
+  type ContractBountyCategory,
+} from "@/lib/contract/contract-utils";
+import { useNetworkSwitch } from "@/lib/contract/use-network-switch";
 import { Switch } from "@/components/ui/switch";
 
 type OpportunityInsert =
@@ -67,6 +82,9 @@ export function CreateOpportunityForm({
     submissionGuidelines: "",
     aboutOrganization: "",
     sendDmToSuitableCandidates: false,
+    prizeFirst: "50",
+    prizeSecond: "30",
+    prizeThird: "20",
   });
 
   const [tags, setTags] = useState<string[]>([]);
@@ -77,6 +95,27 @@ export function CreateOpportunityForm({
   const { user, loading: userLoading } = useUser();
   const { authenticated } = usePrivy();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const processedTxHash = useRef<string | null>(null);
+
+  const { ensureCorrectNetwork, isSwitching, isCorrectNetwork } =
+    useNetworkSwitch();
+  const {
+    writeContract,
+    data: hash,
+    isPending: isContractPending,
+    error: contractError,
+  } = useWriteContract();
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    data: receipt,
+    error: receiptError,
+  } = useWaitForTransactionReceipt({
+    hash,
+    query: {
+      enabled: !!hash,
+    },
+  });
 
   const handleAddTag = () => {
     if (currentTag.trim() && !tags.includes(currentTag.trim())) {
@@ -100,28 +139,13 @@ export function CreateOpportunityForm({
     setSkills(skills.filter((s) => s !== skill));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    // Better check using Privy auth + user loading state
-    if (!authenticated) {
-      toast.error("Please connect your wallet first");
-      return;
-    }
-
-    if (userLoading) {
-      toast.info("Setting up your account, please wait...");
-      return;
-    }
-
-    if (!user?.id) {
-      toast.error("User profile not found. Please refresh and try again.");
-      return;
-    }
-
-    setIsSubmitting(true);
-
+  const handleContractSuccess = async (txHash: `0x${string}`, receipt: any) => {
     try {
+      if (!user?.id) {
+        throw new Error("User not found. Please refresh and try again.");
+      }
+
+      const contractBountyId = getBountyIdFromReceipt(receipt);
       const opportunityData: Database["public"]["Tables"]["opportunities"]["Insert"] =
         {
           type: opportunityType,
@@ -141,7 +165,9 @@ export function CreateOpportunityForm({
           submission_guidelines: formData.submissionGuidelines || null,
           about_organization: formData.aboutOrganization || null,
 
-          ...(opportunityType === "bounty" && { category: formData.category }),
+          ...(opportunityType === "bounty" && {
+            category: formData.category,
+          }),
           ...(opportunityType === "job" && {
             job_type: formData.jobType,
             location: formData.location,
@@ -149,9 +175,40 @@ export function CreateOpportunityForm({
           ...(opportunityType === "project" && { duration: formData.duration }),
         };
 
-      await createOpportunity(opportunityData);
+      const savedOpportunity = await createOpportunity(opportunityData);
+
+      const updateData: any = {};
+
+      if (contractBountyId !== null && contractBountyId !== undefined) {
+        updateData.contract_bounty_id = String(contractBountyId);
+      }
+      updateData.transaction_hash = txHash;
+
+      if (
+        opportunityType === "bounty" &&
+        formData.prizeFirst &&
+        formData.prizeSecond &&
+        formData.prizeThird
+      ) {
+        updateData.prize_distribution = {
+          first: parseFloat(formData.prizeFirst),
+          second: parseFloat(formData.prizeSecond),
+          third: parseFloat(formData.prizeThird),
+        };
+        updateData.prize_first = parseFloat(formData.prizeFirst);
+        updateData.prize_second = parseFloat(formData.prizeSecond);
+        updateData.prize_third = parseFloat(formData.prizeThird);
+      }
+
+      try {
+        await updateOpportunity(savedOpportunity.id, updateData);
+      } catch (updateError) {}
+
       toast.success("Opportunity created successfully! 🎉", {
-        description: "Your opportunity is now live and accepting applications.",
+        description: `Your opportunity is now live on-chain. Transaction: ${txHash.slice(
+          0,
+          10
+        )}...`,
       });
       onSuccess?.();
 
@@ -215,16 +272,149 @@ export function CreateOpportunityForm({
           });
       }
     } catch (error: unknown) {
-      console.error("Error creating opportunity:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Please try again.";
-      toast.error("Failed to create opportunity", {
-        description: errorMessage,
-      });
+      toast.error(
+        "Contract transaction succeeded but failed to save to database",
+        {
+          description: errorMessage,
+        }
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (isConfirmed && receipt && hash && processedTxHash.current !== hash) {
+      processedTxHash.current = hash;
+      toast.dismiss("create-bounty");
+      handleContractSuccess(hash, receipt);
+    }
+  }, [isConfirmed, receipt, hash]);
+
+  useEffect(() => {
+    if (hash && !isConfirmed && !isConfirming && !receiptError) {
+      const timeout = setTimeout(() => {
+        if (processedTxHash.current === hash) {
+          return;
+        }
+
+        toast.info("Transaction may be confirmed. Checking status...", {
+          id: "tx-timeout",
+          duration: 10000,
+        });
+      }, 30000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [hash, isConfirmed, isConfirming, receiptError]);
+
+  useEffect(() => {
+    if (contractError) {
+      toast.dismiss("create-bounty");
+      toast.error("Transaction failed", {
+        description: contractError.message || "Please try again",
+      });
+      setIsSubmitting(false);
+    }
+  }, [contractError]);
+
+  useEffect(() => {
+    if (receiptError) {
+      toast.dismiss("create-bounty");
+      toast.warning(
+        "Transaction may have succeeded but receipt could not be fetched",
+        {
+          description:
+            "Please check the transaction on BSCScan and manually verify",
+        }
+      );
+      setIsSubmitting(false);
+    }
+  }, [receiptError]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    // Better check using Privy auth + user loading state
+    if (!authenticated) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
+    if (userLoading) {
+      toast.info("Setting up your account, please wait...");
+      return;
+    }
+
+    if (!user?.id) {
+      toast.error("User profile not found. Please refresh and try again.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const isOnCorrectNetwork = await ensureCorrectNetwork();
+
+      if (!isOnCorrectNetwork) {
+        setIsSubmitting(false);
+        toast.error("Please switch to BNB Testnet to continue");
+        return;
+      }
+
+      const contractDescription = `${formData.title}\n\n${formData.description}`;
+      const deadlineTimestamp = Math.floor(
+        new Date(formData.deadline).getTime() / 1000
+      );
+      const contractCategory = mapFormCategoryToContract(
+        formData.category,
+        opportunityType
+      );
+      const stakeAmount = convertToWei(
+        parseFloat(formData.amount),
+        formData.currency
+      );
+
+      toast.loading("Preparing transaction...", { id: "create-bounty" });
+
+      writeContract({
+        address: blockchainBountyAddress as `0x${string}`,
+        abi: blockchainBountyAbi,
+        functionName: "createBounty",
+        args: [
+          contractDescription,
+          BigInt(deadlineTimestamp),
+          contractCategory,
+        ],
+        value: stakeAmount,
+        chainId: 97,
+      });
+
+      toast.loading("Waiting for transaction confirmation...", {
+        id: "create-bounty",
+      });
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Please try again.";
+      toast.error("Failed to create bounty on contract", {
+        description: errorMessage,
+        id: "create-bounty",
+      });
+      setIsSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (contractError) {
+      toast.error("Transaction failed", {
+        description: contractError.message || "Please try again.",
+        id: "create-bounty",
+      });
+      setIsSubmitting(false);
+    }
+  }, [contractError]);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -287,7 +477,6 @@ export function CreateOpportunityForm({
             </CardContent>
           </Card>
 
-          {/* Opportunity Type */}
           <div className="space-y-2">
             <Label htmlFor="type">Opportunity Type *</Label>
             <Select
@@ -309,7 +498,6 @@ export function CreateOpportunityForm({
             </Select>
           </div>
 
-          {/* Basic Information */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
@@ -368,7 +556,6 @@ export function CreateOpportunityForm({
             </div>
           </div>
 
-          {/* Type-Specific Fields */}
           {opportunityType === "bounty" && (
             <div className="space-y-2">
               <Label htmlFor="category">Bounty Category *</Label>
@@ -470,7 +657,6 @@ export function CreateOpportunityForm({
             </div>
           )}
 
-          {/* Compensation */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Compensation</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -514,6 +700,132 @@ export function CreateOpportunityForm({
                 </Select>
               </div>
             </div>
+
+            {/* Prize Distribution - Only for Bounty type */}
+            {opportunityType === "bounty" && (
+              <div className="space-y-4 pt-4 border-t">
+                <div>
+                  <h4 className="text-base font-semibold mb-2">
+                    Prize Distribution
+                  </h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Set the percentage of the total prize pool for each winner
+                    position. Total must equal 100%.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="prizeFirst">1st Place (%) *</Label>
+                    <Input
+                      id="prizeFirst"
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="50"
+                      value={formData.prizeFirst}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, prizeFirst: value });
+                      }}
+                      required
+                    />
+                    {formData.amount && (
+                      <p className="text-xs text-muted-foreground">
+                        $
+                        {(
+                          (parseFloat(formData.amount) *
+                            (parseFloat(formData.prizeFirst) || 0)) /
+                          100
+                        ).toFixed(2)}{" "}
+                        {formData.currency}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prizeSecond">2nd Place (%) *</Label>
+                    <Input
+                      id="prizeSecond"
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="30"
+                      value={formData.prizeSecond}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, prizeSecond: value });
+                      }}
+                      required
+                    />
+                    {formData.amount && (
+                      <p className="text-xs text-muted-foreground">
+                        $
+                        {(
+                          (parseFloat(formData.amount) *
+                            (parseFloat(formData.prizeSecond) || 0)) /
+                          100
+                        ).toFixed(2)}{" "}
+                        {formData.currency}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="prizeThird">3rd Place (%) *</Label>
+                    <Input
+                      id="prizeThird"
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="20"
+                      value={formData.prizeThird}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, prizeThird: value });
+                      }}
+                      required
+                    />
+                    {formData.amount && (
+                      <p className="text-xs text-muted-foreground">
+                        $
+                        {(
+                          (parseFloat(formData.amount) *
+                            (parseFloat(formData.prizeThird) || 0)) /
+                          100
+                        ).toFixed(2)}{" "}
+                        {formData.currency}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium">Total:</span>
+                  <span
+                    className={
+                      parseFloat(formData.prizeFirst || "0") +
+                        parseFloat(formData.prizeSecond || "0") +
+                        parseFloat(formData.prizeThird || "0") ===
+                      100
+                        ? "text-green-600 font-semibold"
+                        : "text-red-600 font-semibold"
+                    }
+                  >
+                    {(
+                      parseFloat(formData.prizeFirst || "0") +
+                      parseFloat(formData.prizeSecond || "0") +
+                      parseFloat(formData.prizeThird || "0")
+                    ).toFixed(1)}
+                    %
+                  </span>
+                  {parseFloat(formData.prizeFirst || "0") +
+                    parseFloat(formData.prizeSecond || "0") +
+                    parseFloat(formData.prizeThird || "0") !==
+                    100 && (
+                    <span className="text-xs text-red-600">
+                      (Must equal 100%)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Timeline */}
@@ -554,7 +866,6 @@ export function CreateOpportunityForm({
             </Select>
           </div>
 
-          {/* Tags */}
           <div className="space-y-2">
             <Label htmlFor="tags">Tags</Label>
             <div className="flex gap-2">
@@ -710,10 +1021,20 @@ export function CreateOpportunityForm({
         <Button
           type="submit"
           variant="default"
-          disabled={isSubmitting || userLoading || !authenticated}
+          disabled={
+            isSubmitting ||
+            isContractPending ||
+            isConfirming ||
+            userLoading ||
+            !authenticated
+          }
         >
-          {isSubmitting
-            ? "Creating..."
+          {isSubmitting || isContractPending || isConfirming
+            ? isContractPending
+              ? "Confirming transaction..."
+              : isConfirming
+              ? "Waiting for confirmation..."
+              : "Creating..."
             : userLoading
             ? "Loading..."
             : "Create Opportunity"}

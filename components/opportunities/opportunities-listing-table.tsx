@@ -30,7 +30,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-// import type { Opportunity } from "@/lib/types/opportunities";
 import {
   Briefcase,
   Calendar,
@@ -45,14 +44,14 @@ import {
 } from "lucide-react";
 import { useRole } from "@/contexts/role-context";
 import Link from "next/link";
+import { ApplicantCount } from "./applicant-count";
+import { formatTimeAgo } from "@/lib/utils";
 
 interface OpportunitiesListingTableProps {
-  opportunities: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  opportunities: any[];
 }
 
-// Custom card-like row component
 function OpportunityCard({ opportunity }: { opportunity: any }) {
-  // eslint-disable-line @typescript-eslint/no-explicit-any
   const { role } = useRole();
   const [isFavorite, setIsFavorite] = React.useState(false);
 
@@ -124,9 +123,7 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
   return (
     <Link href={`/opportunities/${opportunity.id}`} className="block">
       <div className="flex items-start gap-6 p-6 hover:bg-accent/50 transition-colors rounded-lg group cursor-pointer">
-        {/* Main Content */}
         <div className="flex-1 space-y-3">
-          {/* Title and Organization */}
           <div>
             <h3 className="text-lg font-semibold mb-1 group-hover:text-primary transition-colors">
               {opportunity.title}
@@ -144,7 +141,6 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
             </div>
           </div>
 
-          {/* Tags and Badges */}
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className={getTypeColor(opportunity.type)}>
               <Tag className="h-3 w-3 mr-1" />
@@ -162,22 +158,24 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
                 {getCategoryText()}
               </Badge>
             )}
-            {opportunity.tags?.slice(0, 3).map((tag: string) => (
-              <Badge key={tag} variant="secondary" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-            {opportunity.tags && opportunity.tags.length > 3 && (
-              <span className="text-xs text-muted-foreground">
-                +{opportunity.tags.length - 3} more
-              </span>
+            {opportunity.tags && opportunity.tags.length > 0 && (
+              <>
+                {opportunity.tags?.slice(0, 3).map((tag: string) => (
+                  <Badge key={tag} variant="secondary" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+                {opportunity.tags && opportunity.tags.length > 3 && (
+                  <span className="text-xs text-muted-foreground">
+                    +{opportunity.tags.length - 3} more
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
 
-        {/* Metrics */}
         <div className="flex items-start gap-8 shrink-0">
-          {/* Reward */}
           <div className="text-center min-w-[100px]">
             <div className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
               <DollarSign className="h-3 w-3" />
@@ -193,19 +191,17 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
             </div>
           </div>
 
-          {/* Applicants */}
           <div className="text-center min-w-[100px]">
             <div className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
               <Users className="h-3 w-3" />
               Applicants
             </div>
             <div className="text-lg font-bold">
-              {opportunity.applicants || 0}
+              <ApplicantCount opportunity={opportunity} />
             </div>
-            <div className="text-xs text-muted-foreground">total</div>
+            <div className="text-xs text-muted-foreground">total </div>
           </div>
 
-          {/* Deadline */}
           <div className="text-center min-w-[100px]">
             <div className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
               <Clock className="h-3 w-3" />
@@ -225,19 +221,9 @@ function OpportunityCard({ opportunity }: { opportunity: any }) {
             </div>
           </div>
 
-          {/* Time Posted & Favorite */}
           <div className="flex flex-col items-center justify-between h-full min-w-[120px]">
             <div className="text-xs text-muted-foreground">
-              {(() => {
-                const now = new Date().getTime();
-                const diff = now - opportunity.createdAt;
-                const hours = Math.floor(diff / (1000 * 60 * 60));
-                if (hours < 1) return "Just now";
-                if (hours < 24)
-                  return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-                const days = Math.floor(hours / 24);
-                return `${days} day${days > 1 ? "s" : ""} ago`;
-              })()}
+              {formatTimeAgo(opportunity.created_at || opportunity.createdAt)}
             </div>
             {role === "hunter" && (
               <Button
@@ -269,9 +255,7 @@ export function OpportunitiesListingTable({
   );
   const [globalFilter, setGlobalFilter] = React.useState("");
 
-  // Define columns for the table (used for sorting/filtering logic)
   const columns: ColumnDef<any>[] = [
-    // eslint-disable-line @typescript-eslint/no-explicit-any
     {
       accessorKey: "title",
       header: "Opportunity",
@@ -379,7 +363,6 @@ export function OpportunitiesListingTable({
         </Select>
       </div>
 
-      {/* Table with card-like rows */}
       <div className="rounded-md border bg-card">
         <Table>
           <TableHeader className="sr-only">
@@ -430,7 +413,6 @@ export function OpportunitiesListingTable({
         </Table>
       </div>
 
-      {/* Pagination */}
       <div className="flex items-center justify-between px-2">
         <div className="text-sm text-muted-foreground">
           Showing{" "}

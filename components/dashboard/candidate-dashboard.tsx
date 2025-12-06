@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -22,63 +23,127 @@ import {
   ArrowRight,
   Calendar,
   MapPin,
+  Loader2,
 } from "lucide-react";
-import { mockOpportunities } from "@/lib/mock-data/opportunities";
 import Link from "next/link";
+import { useUser } from "@/contexts/user-context";
+import { useWallets } from "@privy-io/react-auth";
+import { getUserStatistics } from "@/lib/supabase/services/statistics";
+import { formatTimeAgo } from "@/lib/utils";
+import { getUserApplications } from "@/lib/supabase/services/applications";
+import { getSavedOpportunities } from "@/lib/supabase/services/saved-opportunities";
+import { getOpportunities } from "@/lib/supabase/services/opportunities";
+import type { Database } from "@/lib/supabase/database.types";
+
+type OpportunityRow = Database["public"]["Tables"]["opportunities"]["Row"];
+type ApplicationRow = Database["public"]["Tables"]["applications"]["Row"] & {
+  opportunity: OpportunityRow;
+};
+type SavedOpportunityRow =
+  Database["public"]["Tables"]["saved_opportunities"]["Row"] & {
+    opportunity: OpportunityRow;
+  };
 import { TelegramConnect } from "@/components/profile/telegram-connect";
 
 export function CandidateDashboard() {
-  // Mock user data - in real app, this would come from auth/API
+  const { user } = useUser();
+  const { wallets } = useWallets();
+  const [userStats, setUserStats] = useState<any>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [applications, setApplications] = useState<ApplicationRow[]>([]);
+  const [savedOpportunities, setSavedOpportunities] = useState<
+    SavedOpportunityRow[]
+  >([]);
+  const [recommendedOpportunities, setRecommendedOpportunities] = useState<
+    OpportunityRow[]
+  >([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  // Fetch all data
+  useEffect(() => {
+    async function fetchAllData() {
+      if (!user?.id) {
+        setLoadingData(false);
+        setLoadingStats(false);
+        return;
+      }
+
+      setLoadingData(true);
+      setLoadingStats(true);
+
+      try {
+        const walletAddress = user?.wallet_address || wallets?.[0]?.address;
+        if (walletAddress) {
+          const stats = await getUserStatistics(walletAddress);
+          setUserStats(stats);
+        }
+
+        const apps = await getUserApplications(user.id);
+        setApplications(apps || []);
+
+        const saved = await getSavedOpportunities(user.id);
+        setSavedOpportunities(saved || []);
+
+        if (user.skills && user.skills.length > 0) {
+          const allOpps = await getOpportunities({ status: "active" });
+          const recommended = allOpps
+            .filter((opp) => {
+              if (!opp.required_skills || opp.required_skills.length === 0)
+                return false;
+              return opp.required_skills.some((skill) =>
+                user.skills?.some(
+                  (userSkill) =>
+                    skill.toLowerCase().includes(userSkill.toLowerCase()) ||
+                    userSkill.toLowerCase().includes(skill.toLowerCase())
+                )
+              );
+            })
+            .slice(0, 3);
+          setRecommendedOpportunities(recommended);
+        }
+      } catch (error) {
+      } finally {
+        setLoadingData(false);
+        setLoadingStats(false);
+      }
+    }
+
+    if (user) {
+      fetchAllData();
+    }
+  }, [user, wallets]);
+
+  const activeApplications = applications.filter(
+    (app) => app.status === "pending" || app.status === "reviewing"
+  ).length;
+
+  const completedApplications = applications.filter(
+    (app) => app.status === "accepted" || app.status === "completed"
+  ).length;
+
   const userData = {
-    name: "Alex Hunter",
-    skills: ["React", "TypeScript", "Solana", "UI/UX"],
-    completionRate: 85,
-    totalEarnings: 12500,
-    activeApplications: 5,
-    savedOpportunities: 8,
-    completedBounties: 12,
+    name: user?.name || "User",
+    skills: user?.skills || [],
+    completionRate:
+      userStats && userStats.submissions > 0
+        ? Math.round((userStats.wins / userStats.submissions) * 100)
+        : 0,
+    totalEarnings: userStats?.totalEarnings || 0,
+    activeApplications,
+    savedOpportunities: savedOpportunities.length,
+    completedBounties: userStats?.wins || 0,
+    participations: userStats?.participations || 0,
+    submissions: userStats?.submissions || 0,
   };
 
-  // Mock applications data
-  const recentApplications = [
-    {
-      id: "1",
-      opportunity: mockOpportunities[0],
-      status: "pending",
-      appliedDate: new Date().getTime() - 2 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: "2",
-      opportunity: mockOpportunities[1],
-      status: "reviewing",
-      appliedDate: new Date().getTime() - 5 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: "3",
-      opportunity: mockOpportunities[2],
-      status: "accepted",
-      appliedDate: new Date().getTime() - 7 * 24 * 60 * 60 * 1000,
-    },
-  ];
+  const recentApplications = applications
+    .filter((app) => app.status === "pending" || app.status === "reviewing")
+    .slice(0, 5);
 
-  // Mock saved opportunities
-  const savedOpportunities = [
-    mockOpportunities[3],
-    mockOpportunities[4],
-    mockOpportunities[5],
-  ];
-
-  // Recommended opportunities based on skills
-  const recommendedOpportunities = mockOpportunities
-    .filter(
-      (opp) =>
-        opp.requiredSkills.some((skill) =>
-          userData.skills.some((userSkill) =>
-            skill.toLowerCase().includes(userSkill.toLowerCase())
-          )
-        ) || opp.difficultyLevel === "intermediate"
-    )
-    .slice(0, 3);
+  const savedOppsList = savedOpportunities
+    .slice(0, 5)
+    .map((saved) => saved.opportunity)
+    .filter((opp) => opp !== null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -95,18 +160,8 @@ export function CandidateDashboard() {
     }
   };
 
-  const formatTimeAgo = (timestamp: number) => {
-    const now = new Date().getTime();
-    const diff = now - timestamp;
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Today";
-    if (days === 1) return "Yesterday";
-    return `${days} days ago`;
-  };
-
   return (
     <div className="container mx-auto py-8 max-w-7xl space-y-8">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Welcome back, {userData.name}!</h1>
@@ -122,7 +177,6 @@ export function CandidateDashboard() {
         </Link>
       </div>
 
-      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -149,12 +203,22 @@ export function CandidateDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              ${userData.totalEarnings.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              From {userData.completedBounties} completed bounties
-            </p>
+            {loadingStats ? (
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">
+                  $
+                  {userData.totalEarnings.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  From {userData.completedBounties} wins
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -177,21 +241,24 @@ export function CandidateDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Completion Rate
-            </CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Submissions</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{userData.completionRate}%</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Success rate on projects
-            </p>
+            {loadingStats ? (
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{userData.submissions}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {userData.participations} participations
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Profile Completion Alert */}
       <Card className="border-yellow-500/20 bg-yellow-500/5">
         <CardContent className="flex items-center justify-between p-6">
           <div className="flex items-center gap-4">
@@ -203,7 +270,9 @@ export function CandidateDashboard() {
               </p>
             </div>
           </div>
-          <Button variant="outline">Complete Profile</Button>
+          <Link href="/profile">
+            <Button variant="outline">Complete Profile</Button>
+          </Link>
         </CardContent>
       </Card>
 
@@ -212,7 +281,6 @@ export function CandidateDashboard() {
 
       {/* Main Content with Tabs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Applications & Saved */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
@@ -230,107 +298,244 @@ export function CandidateDashboard() {
                 </TabsList>
 
                 <TabsContent value="active" className="space-y-4">
-                  {recentApplications.map((application) => (
-                    <div
-                      key={application.id}
-                      className="flex items-start gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="font-semibold">
-                              {application.opportunity.title}
-                            </h4>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                              <Briefcase className="h-3.5 w-3.5" />
-                              <span>
-                                {application.opportunity.organization}
-                              </span>
-                            </div>
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className={getStatusColor(application.status)}
-                          >
-                            {application.status}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" />
-                            <span>
-                              Applied {formatTimeAgo(application.appliedDate)}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="h-3.5 w-3.5" />
-                            <span>
-                              ${application.opportunity.amount.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm">
-                        View
-                        <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                      </Button>
+                  {loadingData ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        Loading applications...
+                      </p>
                     </div>
-                  ))}
-                  <Button variant="outline" className="w-full mt-4">
-                    View All Applications
-                  </Button>
+                  ) : recentApplications.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Briefcase className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No active applications yet</p>
+                      <Link href="/opportunities">
+                        <Button variant="outline" className="mt-4">
+                          Browse Opportunities
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <>
+                      {recentApplications.map((application) => (
+                        <Link
+                          key={application.id}
+                          href={`/opportunities/${application.opportunity.id}`}
+                          className="block"
+                        >
+                          <div className="flex items-start gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="font-semibold">
+                                    {application.opportunity.title}
+                                  </h4>
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                    <Briefcase className="h-3.5 w-3.5" />
+                                    <span>
+                                      {application.opportunity.organization}
+                                    </span>
+                                  </div>
+                                </div>
+                                <Badge
+                                  variant="outline"
+                                  className={getStatusColor(
+                                    application.status || "pending"
+                                  )}
+                                >
+                                  {application.status || "pending"}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3.5 w-3.5" />
+                                  <span>
+                                    Applied{" "}
+                                    {formatTimeAgo(application.created_at)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <DollarSign className="h-3.5 w-3.5" />
+                                  <span>
+                                    $
+                                    {application.opportunity.amount.toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => e.preventDefault()}
+                            >
+                              View
+                              <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </Link>
+                      ))}
+                      {applications.length > 5 && (
+                        <Button
+                          variant="outline"
+                          className="w-full mt-4"
+                          asChild
+                        >
+                          <Link href="/dashboard?tab=applications">
+                            View All Applications
+                          </Link>
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="saved" className="space-y-4">
-                  {savedOpportunities.map((opportunity) => (
-                    <div
-                      key={opportunity.id}
-                      className="flex items-start gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="flex-1 space-y-2">
-                        <div>
-                          <h4 className="font-semibold">{opportunity.title}</h4>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                            <Briefcase className="h-3.5 w-3.5" />
-                            <span>{opportunity.organization}</span>
-                            {opportunity.type === "job" &&
-                              "location" in opportunity && (
-                                <>
-                                  <span>•</span>
-                                  <MapPin className="h-3.5 w-3.5" />
-                                  <span>{opportunity.location}</span>
-                                </>
-                              )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {opportunity.type}
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">
-                            ${opportunity.amount.toLocaleString()}
-                          </Badge>
-                        </div>
-                      </div>
-                      <Button size="sm">Apply Now</Button>
+                  {loadingData ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        Loading saved opportunities...
+                      </p>
                     </div>
-                  ))}
+                  ) : savedOppsList.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Heart className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No saved opportunities yet</p>
+                      <Link href="/opportunities">
+                        <Button variant="outline" className="mt-4">
+                          Browse Opportunities
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    savedOppsList.map((opportunity) => (
+                      <Link
+                        key={opportunity.id}
+                        href={`/opportunities/${opportunity.id}`}
+                        className="block"
+                      >
+                        <div className="flex items-start gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                          <div className="flex-1 space-y-2">
+                            <div>
+                              <h4 className="font-semibold">
+                                {opportunity.title}
+                              </h4>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                <Briefcase className="h-3.5 w-3.5" />
+                                <span>{opportunity.organization}</span>
+                                {opportunity.type === "job" &&
+                                  opportunity.location && (
+                                    <>
+                                      <span>•</span>
+                                      <MapPin className="h-3.5 w-3.5" />
+                                      <span>{opportunity.location}</span>
+                                    </>
+                                  )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs">
+                                {opportunity.type}
+                              </Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                ${opportunity.amount.toLocaleString()}
+                              </Badge>
+                            </div>
+                          </div>
+                          <Button size="sm" onClick={(e) => e.preventDefault()}>
+                            View
+                          </Button>
+                        </div>
+                      </Link>
+                    ))
+                  )}
                 </TabsContent>
 
                 <TabsContent value="completed" className="space-y-4">
-                  <div className="text-center py-12 text-muted-foreground">
-                    <CheckCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No completed applications yet</p>
-                  </div>
+                  {loadingData ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        Loading completed applications...
+                      </p>
+                    </div>
+                  ) : completedApplications === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <CheckCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No completed applications yet</p>
+                    </div>
+                  ) : (
+                    applications
+                      .filter(
+                        (app) =>
+                          app.status === "accepted" ||
+                          app.status === "completed"
+                      )
+                      .map((application) => (
+                        <Link
+                          key={application.id}
+                          href={`/opportunities/${application.opportunity.id}`}
+                          className="block"
+                        >
+                          <div className="flex items-start gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="font-semibold">
+                                    {application.opportunity.title}
+                                  </h4>
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                                    <Briefcase className="h-3.5 w-3.5" />
+                                    <span>
+                                      {application.opportunity.organization}
+                                    </span>
+                                  </div>
+                                </div>
+                                <Badge
+                                  variant="outline"
+                                  className={getStatusColor(
+                                    application.status || "completed"
+                                  )}
+                                >
+                                  {application.status || "completed"}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3.5 w-3.5" />
+                                  <span>
+                                    Applied{" "}
+                                    {formatTimeAgo(application.created_at)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <DollarSign className="h-3.5 w-3.5" />
+                                  <span>
+                                    $
+                                    {application.opportunity.amount.toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => e.preventDefault()}
+                            >
+                              View
+                              <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </Link>
+                      ))
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
         </div>
 
-        {/* Right Column - Recommendations & Activity */}
         <div className="space-y-6">
-          {/* Recommended for You */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -342,36 +547,62 @@ export function CandidateDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {recommendedOpportunities.map((opportunity) => (
-                <div
-                  key={opportunity.id}
-                  className="p-3 border rounded-lg hover:bg-accent/50 transition-colors space-y-2"
-                >
-                  <h4 className="font-semibold text-sm leading-tight">
-                    {opportunity.title}
-                  </h4>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{opportunity.organization}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-green-600">
-                      ${opportunity.amount.toLocaleString()}
-                    </div>
-                    <Button size="sm" variant="ghost">
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+              {loadingData ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    Loading recommendations...
+                  </p>
                 </div>
-              ))}
-              <Link href="/opportunities">
-                <Button variant="outline" className="w-full">
-                  See All Recommendations
-                </Button>
-              </Link>
+              ) : recommendedOpportunities.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">No recommendations available</p>
+                  <Link href="/opportunities">
+                    <Button variant="outline" size="sm" className="mt-2">
+                      Browse All
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  {recommendedOpportunities.map((opportunity) => (
+                    <Link
+                      key={opportunity.id}
+                      href={`/opportunities/${opportunity.id}`}
+                      className="block"
+                    >
+                      <div className="p-3 border rounded-lg hover:bg-accent/50 transition-colors space-y-2">
+                        <h4 className="font-semibold text-sm leading-tight">
+                          {opportunity.title}
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{opportunity.organization}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-semibold text-green-600">
+                            ${opportunity.amount.toLocaleString()}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => e.preventDefault()}
+                          >
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                  <Link href="/opportunities">
+                    <Button variant="outline" className="w-full">
+                      See All Recommendations
+                    </Button>
+                  </Link>
+                </>
+              )}
             </CardContent>
           </Card>
 
-          {/* Recent Activity */}
           <Card>
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
@@ -416,7 +647,6 @@ export function CandidateDashboard() {
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
           <Card>
             <CardHeader>
               <CardTitle>This Month</CardTitle>

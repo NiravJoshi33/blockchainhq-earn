@@ -121,4 +121,10 @@
   body {
     @apply bg-background text-foreground;
   }
+  a, button, [role="button"], [onclick] {
+    @apply cursor-pointer;
+  }
+  a[href], button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
+    @apply cursor-pointer;
+  }
 }

@@ -3,8 +3,6 @@
 import { ColumnDef, Row } from "@tanstack/react-table";
 import Link from "next/link";
 
-// This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
 export type Bounty = {
   id: string;
   title: string;
@@ -17,7 +15,7 @@ export type Bounty = {
 const titleComponent = ({ row }: { row: Row<Bounty> }) => {
   return (
     <div className="flex flex-col gap-1 px-2">
-      <Link href={row.original.url}>
+      <Link href={row.original.url} className="hover:underline">
         <h3 className="text-lg font-bold">{row.original.title}</h3>
         <p className="text-sm text-muted-foreground">
           {row.original.organization}
@@ -28,7 +26,6 @@ const titleComponent = ({ row }: { row: Row<Bounty> }) => {
 };
 
 const deadlineComponent = ({ row }: { row: Row<Bounty> }) => {
-  // calculate the difference between the deadline and the current date
   const deadline = new Date(row.original.deadline);
   const currentDate = new Date();
   const difference = deadline.getTime() - currentDate.getTime();

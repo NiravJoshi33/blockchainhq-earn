@@ -18,12 +18,10 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
   const { user, refreshUser } = useUser();
   const [role, setRoleState] = useState<UserRole>("hunter");
 
-  // Sync role from database user
   useEffect(() => {
     if (user?.role) {
       setRoleState(user.role as UserRole);
     } else {
-      // Fallback to localStorage if no user yet
       const savedRole = localStorage.getItem("userRole") as UserRole;
       if (savedRole && (savedRole === "hunter" || savedRole === "sponsor")) {
         setRoleState(savedRole);
@@ -35,13 +33,11 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     setRoleState(newRole);
     localStorage.setItem("userRole", newRole);
 
-    // Update in database if user exists
     if (user?.id) {
       try {
         await updateUserRole(user.id, newRole);
         await refreshUser();
       } catch (error) {
-        console.error("Error updating role:", error);
       }
     }
   };

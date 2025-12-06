@@ -7,6 +7,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -17,6 +18,7 @@ import {
   ChevronDownIcon,
   Lightbulb,
   Trophy,
+  Tag,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -86,6 +88,16 @@ const OpportunitiesDropdown = () => {
           >
             <Trophy className="w-4 h-4" />
             Hackathons
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            className="flex flex-row items-center justify-start gap-2 hover:bg-accent! hover:text-brand! cursor-pointer"
+            onClick={(e) => handleClick(e, "/opportunities/categories")}
+          >
+            <Tag className="w-4 h-4" />
+            Browse by Category
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

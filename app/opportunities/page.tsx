@@ -22,7 +22,21 @@ export default function OpportunitiesPage() {
       : "all";
 
   const [opportunities, setOpportunities] = useState<OpportunityRow[]>([]);
+  const [allOpportunities, setAllOpportunities] = useState<OpportunityRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAllOpportunities() {
+      try {
+        const data = await getOpportunities({
+          status: "active",
+        });
+        setAllOpportunities(data || []);
+      } catch (error) {
+      }
+    }
+    fetchAllOpportunities();
+  }, []);
 
   useEffect(() => {
     async function fetchOpportunities() {
@@ -34,7 +48,6 @@ export default function OpportunitiesPage() {
         });
         setOpportunities(data || []);
       } catch (error) {
-        console.error("Error fetching opportunities:", error);
       } finally {
         setLoading(false);
       }
@@ -57,17 +70,16 @@ export default function OpportunitiesPage() {
       : opportunities.filter((o) => o.type === selectedType);
 
   const stats = {
-    all: opportunities.length,
-    bounty: opportunities.filter((o) => o.type === "bounty").length,
-    job: opportunities.filter((o) => o.type === "job").length,
-    project: opportunities.filter((o) => o.type === "project").length,
-    grant: opportunities.filter((o) => o.type === "grant").length,
-    hackathon: opportunities.filter((o) => o.type === "hackathon").length,
+    all: allOpportunities.length,
+    bounty: allOpportunities.filter((o) => o.type === "bounty").length,
+    job: allOpportunities.filter((o) => o.type === "job").length,
+    project: allOpportunities.filter((o) => o.type === "project").length,
+    grant: allOpportunities.filter((o) => o.type === "grant").length,
+    hackathon: allOpportunities.filter((o) => o.type === "hackathon").length,
   };
 
   return (
     <div className="container mx-auto py-8 max-w-7xl space-y-6">
-      {/* Header */}
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">Discover Opportunities</h1>
         <p className="text-muted-foreground">
@@ -77,7 +89,6 @@ export default function OpportunitiesPage() {
         </p>
       </div>
 
-      {/* Tabs for Opportunity Types */}
       <Tabs
         value={selectedType}
         onValueChange={handleTabChange}
